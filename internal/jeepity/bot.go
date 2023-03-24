@@ -3,6 +3,8 @@ package jeepity
 import (
 	"context"
 	"fmt"
+	"github.com/go-pkgz/repeater"
+	"github.com/go-pkgz/repeater/strategy"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"gopkg.in/telebot.v3"
@@ -151,13 +153,24 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		Messages: reqMsgs,
 	}
 
-	rctx, cancel := context.WithTimeout(ctx, time.Minute)
-	defer cancel()
+	var resp openai.ChatCompletionResponse
 
-	resp, err := b.ai.CreateChatCompletion(rctx, req)
-	if err != nil {
+	backoff := &strategy.Backoff{
+		Duration: 500 * time.Millisecond,
+		Repeats:  5,
+		Factor:   1.5,
+		Jitter:   true,
+	}
+	rErr := repeater.New(backoff).Do(ctx, func() (err error) {
+		rctx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		resp, err = b.ai.CreateChatCompletion(rctx, req)
+		return
+	})
+	if rErr != nil {
 		return c.Send("Could not get a response from OpenAI API. Please try again later.")
 	}
+
 	if len(resp.Choices) < 1 {
 		return fmt.Errorf("no choices returned")
 	}

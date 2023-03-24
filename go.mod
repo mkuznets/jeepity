@@ -3,10 +3,12 @@ module mkuznets.com/go/jeepity
 go 1.19
 
 require (
+	github.com/go-pkgz/repeater v1.1.3
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/sashabaranov/go-openai v1.5.3
+	github.com/yuin/goldmark v1.5.4
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	gopkg.in/telebot.v3 v3.1.3
 	mkuznets.com/go/ytils v0.0.4
