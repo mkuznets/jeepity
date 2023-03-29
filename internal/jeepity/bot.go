@@ -2,6 +2,7 @@ package jeepity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/go-pkgz/repeater"
 	"github.com/go-pkgz/repeater/strategy"
@@ -10,6 +11,7 @@ import (
 	"gopkg.in/telebot.v3"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
+	"strings"
 	"time"
 )
 
@@ -20,9 +22,19 @@ const (
 	gptUser             = "jeepity"
 )
 
+var (
+	ErrNotApproved    = errors.New("not approved")
+	ErrContextTooLong = errors.New("context too long")
+	ErrsPersistent    = []error{
+		ErrContextTooLong,
+	}
+)
+
 type BotHandler struct {
-	ai *openai.Client
-	s  store.Store
+	ai   *openai.Client
+	s    store.Store
+	menu *telebot.ReplyMarkup
+	help telebot.Btn
 }
 
 func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
@@ -33,11 +45,21 @@ func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
 }
 
 func (b *BotHandler) Configure(bot *telebot.Bot) {
+	bot.Use(b.ErrorHandler)
 	bot.Use(ybot.AddCtx)
 	bot.Use(LogEvent)
 
+	bot.NewMarkup().Reply()
+
+	b.menu = bot.NewMarkup()
+	b.menu.ResizeKeyboard = true
+	b.help = b.menu.Data("Начать заново", "reset")
+
+	b.menu.Inline(b.menu.Row(b.help))
+
 	bot.Handle("/start", b.CommandStart, b.ApprovedOnly())
 	bot.Handle("/reset", b.CommandReset, b.ApprovedOnly())
+	bot.Handle(&b.help, b.CommandReset, b.ApprovedOnly())
 	bot.Handle(telebot.OnText, b.OnText, b.ApprovedOnly())
 }
 
@@ -64,6 +86,24 @@ func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
+func (b *BotHandler) ErrorHandler(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		err := next(c)
+		if err == nil {
+			return nil
+		}
+
+		switch err {
+		case ErrNotApproved:
+			return c.Send("⛔️ Вы не можете использовать этот бот")
+		case ErrContextTooLong:
+			return c.Send("⛔️ В текущем диалоге сликом много сообщений", b.menu)
+		default:
+			return c.Send("❌ Что-то пошло не так. Пожалуйста, попробуйте еще раз")
+		}
+	}
+}
+
 func (b *BotHandler) ApprovedOnly() telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
@@ -87,7 +127,7 @@ func (b *BotHandler) ApprovedOnly() telebot.MiddlewareFunc {
 			}
 
 			if !u.Approved {
-				return c.Send("Hello! Please wait for approval.")
+				return ErrNotApproved
 			}
 
 			c.Set(ctxKeyUser, u)
@@ -109,7 +149,7 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 		return err
 	}
 
-	return c.Send("Chat history has been reset")
+	return c.Send("✅ Начат новый диалог. ChatGPT не будет помнить предыдущих сообщений.")
 }
 
 func (b *BotHandler) OnText(c telebot.Context) error {
@@ -161,14 +201,39 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		Factor:   1.5,
 		Jitter:   true,
 	}
-	rErr := repeater.New(backoff).Do(ctx, func() (err error) {
-		rctx, cancel := context.WithTimeout(ctx, time.Minute)
+
+	makeCompletion := func() error {
+		attrs := []slog.Attr{
+			slog.Int64("chat_id", user.ChatId),
+			slog.Int("context_length", len(reqMsgs)),
+		}
+		level := slog.LevelDebug
+		defer func() {
+			slog.LogAttrs(level, "CreateChatCompletion", attrs...)
+		}()
+
+		start := time.Now()
+
+		rctx, cancel := context.WithTimeout(ctx, time.Millisecond)
 		defer cancel()
+
 		resp, err = b.ai.CreateChatCompletion(rctx, req)
-		return
-	})
-	if rErr != nil {
-		return c.Send("Could not get a response from OpenAI API. Please try again later.")
+
+		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
+
+		if err != nil {
+			attrs = append(attrs, slog.Any(slog.ErrorKey, err))
+			level = slog.LevelError
+			if strings.Contains(err.Error(), "reduce the length of the messages") {
+				return ErrContextTooLong
+			}
+			return err
+		}
+		return nil
+	}
+
+	if err := repeater.New(backoff).Do(ctx, makeCompletion, ErrsPersistent...); err != nil {
+		return err
 	}
 
 	if len(resp.Choices) < 1 {
