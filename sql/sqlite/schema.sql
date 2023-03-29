@@ -10,7 +10,6 @@ create table if not exists users
 
 create unique index if not exists users_chat_id_idx on users (chat_id);
 
-drop table if exists messages;
 create table if not exists messages
 (
     id         integer primary key,
