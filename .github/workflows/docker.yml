@@ -1,0 +1,48 @@
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  docker:
+    name: Build and push Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2.0.0
+        with:
+          audience: gha-mkuznets
+          role-to-assume: arn:aws:iam::299685316984:role/github-actions-mkuznets
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR Public
+        uses: aws-actions/amazon-ecr-login@v1.5.3
+        with:
+          registry-type: public
+
+      - name: Build and push Docker image
+        run: |
+          TS=$(TZ=Etc/UTC date '+%Y%m%d%H%M%S')
+          SHA=$(git rev-parse --short "$GITHUB_SHA")
+          TAG="${TS}-${SHA}"
+          
+          docker buildx build \
+            --push \
+            --platform linux/amd64,linux/arm64 \
+            -t public.ecr.aws/mkuznets/jeepity:latest \
+            -t "public.ecr.aws/mkuznets/jeepity:${TAG}" \
+            .
