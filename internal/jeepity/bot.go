@@ -214,7 +214,7 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 
 		start := time.Now()
 
-		rctx, cancel := context.WithTimeout(ctx, time.Millisecond)
+		rctx, cancel := context.WithTimeout(ctx, time.Minute)
 		defer cancel()
 
 		resp, err = b.ai.CreateChatCompletion(rctx, req)
