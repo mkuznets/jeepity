@@ -2,13 +2,15 @@ package ybot
 
 import (
 	"context"
+	"golang.org/x/exp/slog"
 	"gopkg.in/telebot.v3"
 	"mkuznets.com/go/ytils/ytime"
 	"time"
 )
 
 const (
-	ctxKeyCtx = "ctx"
+	ctxKeyCtx    = "ctx"
+	ctxKeyLogger = "lgr"
 )
 
 func AddCtx(next telebot.HandlerFunc) telebot.HandlerFunc {
@@ -19,8 +21,24 @@ func AddCtx(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
+func AddLogger(next telebot.HandlerFunc) telebot.HandlerFunc {
+	return func(c telebot.Context) error {
+		logger := slog.With(
+			slog.Int("id", c.Update().ID),
+			slog.Int64("chat_id", c.Chat().ID),
+			slog.String("username", c.Message().Sender.Username),
+		)
+		c.Set(ctxKeyLogger, logger)
+		return next(c)
+	}
+}
+
 func Ctx(c telebot.Context) context.Context {
 	return c.Get(ctxKeyCtx).(context.Context)
+}
+
+func Logger(c telebot.Context) *slog.Logger {
+	return c.Get(ctxKeyLogger).(*slog.Logger)
 }
 
 func NotifyTyping(ctx context.Context, c telebot.Context) context.CancelFunc {

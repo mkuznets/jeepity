@@ -47,6 +47,7 @@ func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
 func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Use(b.ErrorHandler)
 	bot.Use(ybot.AddCtx)
+	bot.Use(ybot.AddLogger)
 	bot.Use(LogEvent)
 
 	bot.NewMarkup().Reply()
@@ -65,11 +66,9 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 
 func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		attrs := []slog.Attr{
-			slog.Int("id", c.Update().ID),
-			slog.Int64("chat_id", c.Chat().ID),
-			slog.String("username", c.Chat().Username),
-		}
+		logger := ybot.Logger(c)
+
+		var attrs []slog.Attr
 		level := slog.LevelDebug
 		start := time.Now()
 
@@ -81,7 +80,7 @@ func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
 			level = slog.LevelError
 		}
 
-		slog.LogAttrs(level, "EVENT", attrs...)
+		logger.LogAttrs(level, "event", attrs...)
 		return err
 	}
 }
@@ -154,6 +153,7 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 
 func (b *BotHandler) OnText(c telebot.Context) error {
 	ctx := ybot.Ctx(c)
+	logger := ybot.Logger(c)
 	user := c.Get(ctxKeyUser).(*store.User)
 
 	cancel := ybot.NotifyTyping(ctx, c)
@@ -204,12 +204,11 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 
 	makeCompletion := func() error {
 		attrs := []slog.Attr{
-			slog.Int64("chat_id", user.ChatId),
 			slog.Int("context_length", len(reqMsgs)),
 		}
 		level := slog.LevelDebug
 		defer func() {
-			slog.LogAttrs(level, "CreateChatCompletion", attrs...)
+			logger.LogAttrs(level, "CreateChatCompletion", attrs...)
 		}()
 
 		start := time.Now()
@@ -252,7 +251,13 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		return fmt.Errorf("put messages: %w", err)
 	}
 
-	return c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	mErr := c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	if mErr != nil {
+		logger.Error("send markdown", mErr)
+		return c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeDefault})
+	}
+
+	return nil
 }
 
 func messagesToOpenAiMessages(messages []*store.Message) []openai.ChatCompletionMessage {
