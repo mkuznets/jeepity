@@ -1,0 +1,3 @@
+# EOL normalisation: convert line endings to LF (Unix-style)
+* text eol=lf
+* text
