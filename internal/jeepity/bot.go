@@ -9,6 +9,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"gopkg.in/telebot.v3"
+	"gopkg.in/telebot.v3/middleware"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
 	"strings"
@@ -16,7 +17,6 @@ import (
 )
 
 const (
-	ctxKeyUser          = "user"
 	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Answer as concisely as possible`
 	gptModel            = "gpt-3.5-turbo"
 	gptUser             = "jeepity"
@@ -31,10 +31,8 @@ var (
 )
 
 type BotHandler struct {
-	ai   *openai.Client
-	s    store.Store
-	menu *telebot.ReplyMarkup
-	help telebot.Btn
+	ai *openai.Client
+	s  store.Store
 }
 
 func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
@@ -45,95 +43,33 @@ func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
 }
 
 func (b *BotHandler) Configure(bot *telebot.Bot) {
-	bot.Use(b.ErrorHandler)
-	bot.Use(ybot.AddCtx)
+	// # Menus and buttons
+
+	resetMenu := bot.NewMarkup()
+	resetMenu.ResizeKeyboard = true
+	resetButton := resetMenu.Data("Начать заново", "reset")
+	resetMenu.Inline(resetMenu.Row(resetButton))
+
+	// # Middleware
+
+	// ErrorHandler must be the first to catch any possible errors
+	// from other middlewares and reply to the user.
+	bot.Use(ErrorHandler(resetMenu))
+
+	bot.Use(middleware.Recover())
+
 	bot.Use(ybot.AddLogger)
-	bot.Use(LogEvent)
+	bot.Use(ybot.AddCtx)
 
-	bot.NewMarkup().Reply()
+	bot.Use(ybot.LogEvent)
+	bot.Use(Authenticate(b.s))
 
-	b.menu = bot.NewMarkup()
-	b.menu.ResizeKeyboard = true
-	b.help = b.menu.Data("Начать заново", "reset")
+	// # Handlers
 
-	b.menu.Inline(b.menu.Row(b.help))
-
-	bot.Handle("/start", b.CommandStart, b.ApprovedOnly())
-	bot.Handle("/reset", b.CommandReset, b.ApprovedOnly())
-	bot.Handle(&b.help, b.CommandReset, b.ApprovedOnly())
-	bot.Handle(telebot.OnText, b.OnText, b.ApprovedOnly())
-}
-
-func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
-	return func(c telebot.Context) error {
-		logger := ybot.Logger(c)
-
-		var attrs []slog.Attr
-		level := slog.LevelDebug
-		start := time.Now()
-
-		err := next(c)
-
-		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
-		if err != nil {
-			attrs = append(attrs, slog.Any(slog.ErrorKey, err))
-			level = slog.LevelError
-		}
-
-		logger.LogAttrs(level, "event", attrs...)
-		return err
-	}
-}
-
-func (b *BotHandler) ErrorHandler(next telebot.HandlerFunc) telebot.HandlerFunc {
-	return func(c telebot.Context) error {
-		err := next(c)
-		if err == nil {
-			return nil
-		}
-
-		switch err {
-		case ErrNotApproved:
-			return c.Send("⛔️ Вы не можете использовать этот бот")
-		case ErrContextTooLong:
-			return c.Send("⛔️ В текущем диалоге сликом много сообщений", b.menu)
-		default:
-			return c.Send("❌ Что-то пошло не так. Пожалуйста, попробуйте еще раз")
-		}
-	}
-}
-
-func (b *BotHandler) ApprovedOnly() telebot.MiddlewareFunc {
-	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
-		return func(c telebot.Context) error {
-			ctx := ybot.Ctx(c)
-
-			u, err := b.s.GetUser(ctx, c.Message().Chat.ID)
-			if err != nil {
-				return err
-			}
-
-			if u == nil {
-				u = &store.User{
-					Approved: true,
-					ChatId:   c.Chat().ID,
-					Username: c.Chat().Username,
-					FullName: c.Chat().FirstName + " " + c.Chat().LastName,
-				}
-				if err := b.s.PutUser(ctx, u); err != nil {
-					return err
-				}
-			}
-
-			if !u.Approved {
-				return ErrNotApproved
-			}
-
-			c.Set(ctxKeyUser, u)
-
-			return next(c)
-		}
-	}
+	bot.Handle("/start", b.CommandStart)
+	bot.Handle("/reset", b.CommandReset)
+	bot.Handle(&resetButton, b.CommandReset)
+	bot.Handle(telebot.OnText, b.OnText)
 }
 
 func (b *BotHandler) CommandStart(c telebot.Context) error {

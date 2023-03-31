@@ -2,11 +2,14 @@ package main
 
 import (
 	"github.com/sashabaranov/go-openai"
+	"golang.org/x/exp/slog"
 	"gopkg.in/telebot.v3"
 	"mkuznets.com/go/jeepity/internal/jeepity"
 	"mkuznets.com/go/jeepity/internal/store"
+	"mkuznets.com/go/jeepity/internal/ybot"
 	"mkuznets.com/go/ytils/yfs"
 	"path"
+	"runtime/debug"
 	"time"
 )
 
@@ -22,6 +25,13 @@ func (r *RunCommand) Init(*App) error {
 	pref := telebot.Settings{
 		Token:  r.TelegramBotToken,
 		Poller: &telebot.LongPoller{Timeout: 5 * time.Second},
+		OnError: func(err error, c telebot.Context) {
+			logger := slog.Default()
+			if c != nil {
+				logger = ybot.Logger(c)
+			}
+			logger.Error("unhandled bot error", err, slog.String("err_stack", string(debug.Stack())))
+		},
 	}
 
 	bot, err := telebot.NewBot(pref)
