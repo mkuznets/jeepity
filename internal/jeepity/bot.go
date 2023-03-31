@@ -192,6 +192,19 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		return fmt.Errorf("put messages: %w", err)
 	}
 
+	usage := &store.Usage{
+		ChatId:           c.Chat().ID,
+		UpdateId:         c.Update().ID,
+		Model:            resp.Model,
+		CompletionTokens: resp.Usage.CompletionTokens,
+		PromptTokens:     resp.Usage.PromptTokens,
+		TotalTokens:      resp.Usage.TotalTokens,
+	}
+
+	if err := b.s.PutUsage(ctx, usage); err != nil {
+		logger.Error("PutUsage", err)
+	}
+
 	mErr := c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
 	if mErr != nil {
 		logger.Error("send markdown", mErr)

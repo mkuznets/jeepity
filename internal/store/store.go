@@ -23,6 +23,17 @@ type Message struct {
 	CreatedAt ytime.Time `db:"created_at"`
 }
 
+type Usage struct {
+	Id               int        `db:"id"`
+	ChatId           int64      `db:"chat_id"`
+	UpdateId         int        `db:"update_id"`
+	Model            string     `db:"model"`
+	CompletionTokens int        `db:"completion_tokens"`
+	PromptTokens     int        `db:"prompt_tokens"`
+	TotalTokens      int        `db:"total_tokens"`
+	CreatedAt        ytime.Time `db:"created_at"`
+}
+
 type Store interface {
 	GetUser(ctx context.Context, chatId int64) (*User, error)
 	PutUser(ctx context.Context, user *User) error
@@ -31,4 +42,6 @@ type Store interface {
 	GetMessages(ctx context.Context, chatId int64) ([]*Message, error)
 	PutMessages(ctx context.Context, message []*Message) error
 	ClearMessages(ctx context.Context, chatId int64) error
+
+	PutUsage(ctx context.Context, usage *Usage) error
 }

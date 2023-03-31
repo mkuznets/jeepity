@@ -147,6 +147,26 @@ func (s *storeSqlite) ClearMessages(ctx context.Context, chatId int64) error {
 	return err
 }
 
+func (s *storeSqlite) PutUsage(ctx context.Context, usage *Usage) error {
+	if err := s.init(ctx); err != nil {
+		return err
+	}
+
+	u := *usage
+	u.CreatedAt = ytime.Now()
+
+	query := `
+	INSERT INTO usage (chat_id, update_id, model, completion_tokens, prompt_tokens, total_tokens, created_at)
+	VALUES (?, ?, ?, ?, ?, ?, ?)`
+
+	_, err := s.db.ExecContext(
+		ctx, query,
+		u.ChatId, u.UpdateId, u.Model, u.CompletionTokens, u.PromptTokens, u.TotalTokens, u.CreatedAt,
+	)
+	return err
+
+}
+
 func doTx(ctx context.Context, db *sqlx.DB, op func(tx *sqlx.Tx) error) error {
 	tx, err := db.BeginTxx(ctx, nil)
 	if err != nil {
