@@ -218,7 +218,12 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 
 		resp, err = b.ai.CreateChatCompletion(rctx, req)
 
-		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
+		attrs = append(attrs,
+			slog.Duration("duration", time.Since(start)),
+			slog.Int("prompt_tokens", resp.Usage.PromptTokens),
+			slog.Int("completion_tokens", resp.Usage.CompletionTokens),
+			slog.Int("total_tokens", resp.Usage.TotalTokens),
+		)
 
 		if err != nil {
 			attrs = append(attrs, slog.Any(slog.ErrorKey, err))
