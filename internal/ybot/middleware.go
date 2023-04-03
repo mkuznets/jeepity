@@ -10,6 +10,7 @@ import (
 const (
 	ctxKeyCtx    = "ctx"
 	ctxKeyLogger = "lgr"
+	ctxKeyTag    = "tag"
 )
 
 func AddCtx(next telebot.HandlerFunc) telebot.HandlerFunc {
@@ -46,15 +47,35 @@ func Logger(c telebot.Context) *slog.Logger {
 	return slog.Default()
 }
 
+func Tag(c telebot.Context) string {
+	if tag, ok := c.Get(ctxKeyTag).(string); ok {
+		return tag
+	}
+	return ""
+}
+
+func AddTag(tag string) telebot.MiddlewareFunc {
+	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			c.Set(ctxKeyTag, tag)
+			if lgr, ok := c.Get(ctxKeyLogger).(*slog.Logger); ok && lgr != nil {
+				lgr = lgr.With(slog.String("tag", tag))
+				c.Set(ctxKeyLogger, lgr)
+			}
+			return next(c)
+		}
+	}
+}
+
 func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
-		logger := Logger(c)
-
 		var attrs []slog.Attr
 		level := slog.LevelDebug
 		start := time.Now()
 
 		err := next(c)
+
+		logger := Logger(c)
 
 		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
 		if err != nil {

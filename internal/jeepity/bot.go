@@ -66,10 +66,10 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 
 	// # Handlers
 
-	bot.Handle("/start", b.CommandStart)
-	bot.Handle("/reset", b.CommandReset)
-	bot.Handle(&resetButton, b.CommandReset)
-	bot.Handle(telebot.OnText, b.OnText)
+	bot.Handle("/start", b.CommandStart, ybot.AddTag("start"))
+	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
+	bot.Handle(&resetButton, b.CommandReset, ybot.AddTag("reset_button"))
+	bot.Handle(telebot.OnText, b.OnText, ybot.AddTag("chat_completion"))
 }
 
 func (b *BotHandler) CommandStart(c telebot.Context) error {
