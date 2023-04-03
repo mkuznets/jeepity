@@ -12,8 +12,9 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
 			ctx := ybot.Ctx(c)
+			sender := c.Sender()
 
-			u, err := s.GetUser(ctx, c.Message().Chat.ID)
+			u, err := s.GetUser(ctx, sender.ID)
 			if err != nil {
 				return err
 			}
@@ -21,9 +22,9 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 			if u == nil {
 				u = &store.User{
 					Approved: true,
-					ChatId:   c.Chat().ID,
-					Username: c.Chat().Username,
-					FullName: c.Chat().FirstName + " " + c.Chat().LastName,
+					ChatId:   sender.ID,
+					Username: sender.Username,
+					FullName: sender.FirstName + " " + sender.LastName,
 				}
 				if err := s.PutUser(ctx, u); err != nil {
 					return err

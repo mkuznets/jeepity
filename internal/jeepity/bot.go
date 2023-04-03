@@ -193,7 +193,7 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	}
 
 	usage := &store.Usage{
-		ChatId:           c.Chat().ID,
+		ChatId:           c.Sender().ID,
 		UpdateId:         c.Update().ID,
 		Model:            resp.Model,
 		CompletionTokens: resp.Usage.CompletionTokens,
