@@ -25,8 +25,8 @@ func AddLogger(next telebot.HandlerFunc) telebot.HandlerFunc {
 	return func(c telebot.Context) error {
 		logger := slog.With(
 			slog.Int("id", c.Update().ID),
-			slog.Int64("chat_id", c.Chat().ID),
-			slog.String("username", c.Message().Sender.Username),
+			slog.Int64("chat_id", c.Sender().ID),
+			slog.String("username", c.Sender().Username),
 		)
 		c.Set(ctxKeyLogger, logger)
 		return next(c)
