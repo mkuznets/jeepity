@@ -2,8 +2,8 @@ package ybot
 
 import (
 	"context"
+	"github.com/mkuznets/telebot/v3"
 	"golang.org/x/exp/slog"
-	"gopkg.in/telebot.v3"
 	"time"
 )
 

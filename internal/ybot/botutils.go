@@ -2,7 +2,7 @@ package ybot
 
 import (
 	"context"
-	"gopkg.in/telebot.v3"
+	"github.com/mkuznets/telebot/v3"
 	"mkuznets.com/go/ytils/ytime"
 	"time"
 )

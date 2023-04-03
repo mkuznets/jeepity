@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/mkuznets/telebot/v3"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
-	"gopkg.in/telebot.v3"
 	"mkuznets.com/go/jeepity/internal/jeepity"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
