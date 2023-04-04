@@ -39,7 +39,7 @@ type Store interface {
 	PutUser(ctx context.Context, user *User) error
 	ApproveUser(ctx context.Context, chatId int64) error
 
-	GetMessages(ctx context.Context, chatId int64) ([]*Message, error)
+	GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error)
 	PutMessages(ctx context.Context, message []*Message) error
 	ClearMessages(ctx context.Context, chatId int64) error
 

@@ -84,7 +84,7 @@ func (s *storeSqlite) ApproveUser(ctx context.Context, chatId int64) error {
 	return err
 }
 
-func (s *storeSqlite) GetMessages(ctx context.Context, chatId int64) ([]*Message, error) {
+func (s *storeSqlite) GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error) {
 	if err := s.init(ctx); err != nil {
 		return nil, err
 	}

@@ -100,7 +100,7 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		msgs    []*store.Message
 	)
 
-	previousMsgs, err := b.s.GetMessages(ctx, user.ChatId)
+	previousMsgs, err := b.s.GetDialogMessages(ctx, user.ChatId)
 	if err != nil {
 		return err
 	}
