@@ -5,7 +5,8 @@ create table if not exists users
     username   text                not null,
     full_name  text                not null,
     created_at integer             not null check (created_at > 0),
-    updated_at integer             not null check (updated_at > 0)
+    updated_at integer             not null check (updated_at > 0),
+    salt       text                not null
 ) strict;
 
 create unique index if not exists users_chat_id_idx on users (chat_id);

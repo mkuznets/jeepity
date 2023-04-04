@@ -7,6 +7,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"mkuznets.com/go/jeepity/sql/sqlite"
 	"mkuznets.com/go/ytils/ycrypto"
+	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 
 const (
 	DialogRetention = time.Hour
+	SaltLength      = 32
 )
 
 type SqliteStore struct {
@@ -32,7 +34,25 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 		return err
 	}
 
-	if _, err := s.db.ExecContext(ctx, string(content)); err != nil {
+	err = doTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
+			return err
+		}
+
+		var chatIds []int64
+		if err := tx.Select(&chatIds, "SELECT chat_id FROM users WHERE salt = ''"); err != nil {
+			return err
+		}
+
+		for _, chatId := range chatIds {
+			if _, err := tx.Exec("UPDATE users SET salt = ? WHERE chat_id = ?", yrand.Base62(SaltLength), chatId); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
 		return err
 	}
 	s.initialised = true
@@ -71,11 +91,11 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
 	u.UpdatedAt = ytime.Now()
 
 	query := `
-	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?)
+	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT DO NOTHING`
 
-	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt)
+	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, yrand.Base62(SaltLength))
 	return err
 }
 
