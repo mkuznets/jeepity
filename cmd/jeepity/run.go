@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"github.com/mkuznets/telebot/v3"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
@@ -40,6 +42,10 @@ func (r *RunCommand) Init(*App) error {
 	}
 
 	st := store.NewSqliteStoreFromPath(path.Join(r.DataDir, dbFilename))
+	if err := st.Init(context.Background()); err != nil {
+		return fmt.Errorf("sqlite store init: %w", err)
+	}
+
 	ai := openai.NewClient(r.OpenAiToken)
 	bh := jeepity.NewBotHandler(ai, st)
 	bh.Configure(bot)

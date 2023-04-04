@@ -18,12 +18,12 @@ const (
 	DialogRetention = time.Hour
 )
 
-type storeSqlite struct {
+type SqliteStore struct {
 	db          *sqlx.DB
 	initialised bool
 }
 
-func (s *storeSqlite) init(ctx context.Context) error {
+func (s *SqliteStore) Init(ctx context.Context) error {
 	if s.initialised {
 		return nil
 	}
@@ -39,14 +39,14 @@ func (s *storeSqlite) init(ctx context.Context) error {
 	return nil
 }
 
-func NewSqliteStoreFromPath(path string) Store {
+func NewSqliteStoreFromPath(path string) *SqliteStore {
 	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=NORMAL&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
 	db := sqlx.MustConnect("sqlite3", dsn)
-	return &storeSqlite{db: db}
+	return &SqliteStore{db: db}
 }
 
-func (s *storeSqlite) GetUser(ctx context.Context, chatId int64) (*User, error) {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) {
+	if err := s.Init(ctx); err != nil {
 		return nil, err
 	}
 
@@ -61,8 +61,8 @@ func (s *storeSqlite) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	return &user, nil
 }
 
-func (s *storeSqlite) PutUser(ctx context.Context, user *User) error {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 
@@ -79,8 +79,8 @@ func (s *storeSqlite) PutUser(ctx context.Context, user *User) error {
 	return err
 }
 
-func (s *storeSqlite) ApproveUser(ctx context.Context, chatId int64) error {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) ApproveUser(ctx context.Context, chatId int64) error {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 
@@ -89,8 +89,8 @@ func (s *storeSqlite) ApproveUser(ctx context.Context, chatId int64) error {
 	return err
 }
 
-func (s *storeSqlite) GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error) {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error) {
+	if err := s.Init(ctx); err != nil {
 		return nil, err
 	}
 
@@ -131,8 +131,8 @@ func (s *storeSqlite) GetDialogMessages(ctx context.Context, chatId int64) ([]*M
 	return messages, nil
 }
 
-func (s *storeSqlite) PutMessages(ctx context.Context, messages []*Message) error {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) PutMessages(ctx context.Context, messages []*Message) error {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 
@@ -159,16 +159,16 @@ func (s *storeSqlite) PutMessages(ctx context.Context, messages []*Message) erro
 	})
 }
 
-func (s *storeSqlite) ClearMessages(ctx context.Context, chatId int64) error {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) ClearMessages(ctx context.Context, chatId int64) error {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 	_, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_id = ?`, chatId)
 	return err
 }
 
-func (s *storeSqlite) PutUsage(ctx context.Context, usage *Usage) error {
-	if err := s.init(ctx); err != nil {
+func (s *SqliteStore) PutUsage(ctx context.Context, usage *Usage) error {
+	if err := s.Init(ctx); err != nil {
 		return err
 	}
 
