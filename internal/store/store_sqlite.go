@@ -8,9 +8,14 @@ import (
 	"mkuznets.com/go/jeepity/sql/sqlite"
 	"mkuznets.com/go/ytils/ycrypto"
 	"mkuznets.com/go/ytils/ytime"
+	"time"
 
 	// Required to load "sqlite" driver
 	_ "github.com/mattn/go-sqlite3"
+)
+
+const (
+	DialogRetention = time.Hour
 )
 
 type storeSqlite struct {
@@ -89,14 +94,29 @@ func (s *storeSqlite) GetDialogMessages(ctx context.Context, chatId int64) ([]*M
 		return nil, err
 	}
 
-	query := `
+	retentionQuery := `SELECT COUNT(*) FROM messages WHERE created_at > ? AND chat_id = ?`
+	var recentMessages int
+	retentionThreshold := ytime.New(time.Now().Add(-DialogRetention))
+
+	if err := s.db.QueryRowxContext(ctx, retentionQuery, retentionThreshold, chatId).Scan(&recentMessages); err != nil {
+		return nil, err
+	}
+
+	if recentMessages == 0 {
+		if err := s.ClearMessages(ctx, chatId); err != nil {
+			return nil, fmt.Errorf("ClearMessages: %w", err)
+		}
+		return nil, nil
+	}
+
+	dialogQuery := `
 	SELECT id, chat_id, role, message, created_at
 	FROM messages
 	WHERE chat_id = ?
 	ORDER BY id ASC`
 
 	var messages []*Message
-	if err := s.db.SelectContext(ctx, &messages, query, chatId); err != nil {
+	if err := s.db.SelectContext(ctx, &messages, dialogQuery, chatId); err != nil {
 		return nil, err
 	}
 
