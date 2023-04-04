@@ -36,20 +36,8 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 
 	err = doTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-			return err
+			return fmt.Errorf("init schema: %w", err)
 		}
-
-		var chatIds []int64
-		if err := tx.Select(&chatIds, "SELECT chat_id FROM users WHERE salt = ''"); err != nil {
-			return err
-		}
-
-		for _, chatId := range chatIds {
-			if _, err := tx.Exec("UPDATE users SET salt = ? WHERE chat_id = ?", yrand.Base62(SaltLength), chatId); err != nil {
-				return err
-			}
-		}
-
 		return nil
 	})
 	if err != nil {
