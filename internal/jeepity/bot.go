@@ -12,6 +12,7 @@ import (
 	"golang.org/x/exp/slog"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
+	"mkuznets.com/go/ytils/ycrypto"
 	"strings"
 	"time"
 )
@@ -33,12 +34,14 @@ var (
 type BotHandler struct {
 	ai *openai.Client
 	s  store.Store
+	e  Cryptor
 }
 
-func NewBotHandler(openAiClient *openai.Client, st store.Store) *BotHandler {
+func NewBotHandler(openAiClient *openai.Client, st store.Store, e Cryptor) *BotHandler {
 	return &BotHandler{
 		ai: openAiClient,
 		s:  st,
+		e:  e,
 	}
 }
 
@@ -103,6 +106,23 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	previousMsgs, err := b.s.GetDialogMessages(ctx, user.ChatId)
 	if err != nil {
 		return err
+	}
+
+	for _, msg := range previousMsgs {
+		switch msg.Version {
+		case store.MessageVersionV0:
+			revealed, err := ycrypto.Reveal(msg.Message)
+			if err != nil {
+				return fmt.Errorf("message reveal: %w", err)
+			}
+			msg.Message = revealed
+		case store.MessageVersionV1:
+			decrypted, err := b.e.Decrypt(user.Salt, msg.Message)
+			if err != nil {
+				return fmt.Errorf("message decrypt: %w", err)
+			}
+			msg.Message = decrypted
+		}
 	}
 
 	if len(previousMsgs) > 0 {
@@ -187,6 +207,15 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 		Role:    openai.ChatMessageRoleSystem,
 		Message: chatResponse,
 	})
+
+	for _, msg := range msgs {
+		encrypted, err := b.e.Encrypt(user.Salt, msg.Message)
+		if err != nil {
+			return fmt.Errorf("message encrypt: %w", err)
+		}
+		msg.Message = encrypted
+		msg.Version = store.MessageVersionV1
+	}
 
 	if err := b.s.PutMessages(ctx, msgs); err != nil {
 		return fmt.Errorf("put messages: %w", err)

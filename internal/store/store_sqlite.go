@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/jmoiron/sqlx"
 	"mkuznets.com/go/jeepity/sql/sqlite"
-	"mkuznets.com/go/ytils/ycrypto"
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
 	"time"
@@ -47,7 +46,7 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 	return nil
 }
 
-func NewSqliteStoreFromPath(path string) *SqliteStore {
+func NewSqlite(path string) *SqliteStore {
 	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=NORMAL&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
 	db := sqlx.MustConnect("sqlite3", dsn)
 	return &SqliteStore{db: db}
@@ -59,7 +58,7 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	}
 
 	var user User
-	query := `SELECT chat_id, approved, username, full_name, created_at, updated_at FROM users WHERE chat_id = ?`
+	query := `SELECT chat_id, approved, username, full_name, salt, created_at, updated_at FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil
@@ -75,6 +74,7 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
 	}
 
 	u := *user
+	u.Salt = yrand.Base62(SaltLength)
 	u.CreatedAt = ytime.Now()
 	u.UpdatedAt = ytime.Now()
 
@@ -83,7 +83,7 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT DO NOTHING`
 
-	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, yrand.Base62(SaltLength))
+	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt)
 	return err
 }
 
@@ -118,7 +118,7 @@ func (s *SqliteStore) GetDialogMessages(ctx context.Context, chatId int64) ([]*M
 	}
 
 	dialogQuery := `
-	SELECT id, chat_id, role, message, created_at
+	SELECT id, chat_id, role, message, created_at, version
 	FROM messages
 	WHERE chat_id = ?
 	ORDER BY id ASC`
@@ -127,15 +127,6 @@ func (s *SqliteStore) GetDialogMessages(ctx context.Context, chatId int64) ([]*M
 	if err := s.db.SelectContext(ctx, &messages, dialogQuery, chatId); err != nil {
 		return nil, err
 	}
-
-	for _, msg := range messages {
-		obscuredMsg, err := ycrypto.Reveal(msg.Message)
-		if err != nil {
-			return nil, fmt.Errorf("message reveal: %w", err)
-		}
-		msg.Message = obscuredMsg
-	}
-
 	return messages, nil
 }
 
@@ -146,19 +137,13 @@ func (s *SqliteStore) PutMessages(ctx context.Context, messages []*Message) erro
 
 	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		query := `
-		INSERT INTO messages (chat_id, role, message, created_at)
-		VALUES (?, ?, ?, ?)`
+		INSERT INTO messages (chat_id, role, message, created_at, version)
+		VALUES (?, ?, ?, ?, ?)`
 
 		for _, msg := range messages {
 			m := *msg
 			m.CreatedAt = ytime.Now()
-			obscuredMsg, err := ycrypto.Obscure(m.Message)
-			if err != nil {
-				return err
-			}
-			m.Message = obscuredMsg
-
-			if _, err := tx.ExecContext(ctx, query, m.ChatId, m.Role, m.Message, m.CreatedAt); err != nil {
+			if _, err := tx.ExecContext(ctx, query, m.ChatId, m.Role, m.Message, m.CreatedAt, m.Version); err != nil {
 				return err
 			}
 		}

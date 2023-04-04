@@ -17,6 +17,7 @@ create table if not exists messages
     chat_id    integer not null references users (chat_id) on delete cascade,
     role       text    not null,
     message    text    not null,
+    version    integer not null,
     created_at integer not null check (created_at > 0)
 ) strict;
 
