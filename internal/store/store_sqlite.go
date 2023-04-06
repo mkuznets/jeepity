@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/exp/slog"
 	"mkuznets.com/go/jeepity/sql/sqlite"
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
@@ -44,6 +45,15 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 	}
 	s.initialised = true
 	return nil
+}
+
+func (s *SqliteStore) Close() {
+	if _, err := s.db.Exec("vacuum"); err != nil {
+		slog.Error("sqlite vacuum", err)
+	}
+	if err := s.db.Close(); err != nil {
+		slog.Error("sqlite close", err)
+	}
 }
 
 func NewSqlite(path string) *SqliteStore {

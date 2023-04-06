@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/mkuznets/telebot/v3"
 	"golang.org/x/exp/slog"
+	"sync"
 	"time"
 )
 
@@ -13,11 +14,22 @@ const (
 	ctxKeyTag    = "tag"
 )
 
-func AddCtx(next telebot.HandlerFunc) telebot.HandlerFunc {
-	return func(c telebot.Context) error {
-		ctx := context.Background()
-		c.Set(ctxKeyCtx, ctx)
-		return next(c)
+func AddCtx(ctx context.Context) telebot.MiddlewareFunc {
+	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			c.Set(ctxKeyCtx, ctx)
+			return next(c)
+		}
+	}
+}
+
+func TakeMutex(m *sync.RWMutex) telebot.MiddlewareFunc {
+	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			m.RLock()
+			defer m.RUnlock()
+			return next(c)
+		}
 	}
 }
 

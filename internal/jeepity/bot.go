@@ -14,6 +14,8 @@ import (
 	"mkuznets.com/go/jeepity/internal/ybot"
 	"mkuznets.com/go/ytils/ycrypto"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -32,16 +34,22 @@ var (
 )
 
 type BotHandler struct {
-	ai *openai.Client
-	s  store.Store
-	e  Cryptor
+	ctx      context.Context
+	ai       *openai.Client
+	s        store.Store
+	e        Cryptor
+	m        *sync.RWMutex
+	stopping *atomic.Bool
 }
 
-func NewBotHandler(openAiClient *openai.Client, st store.Store, e Cryptor) *BotHandler {
+func NewBotHandler(ctx context.Context, openAiClient *openai.Client, st store.Store, e Cryptor) *BotHandler {
 	return &BotHandler{
-		ai: openAiClient,
-		s:  st,
-		e:  e,
+		ctx:      ctx,
+		ai:       openAiClient,
+		s:        st,
+		e:        e,
+		m:        &sync.RWMutex{},
+		stopping: &atomic.Bool{},
 	}
 }
 
@@ -60,9 +68,20 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Use(ErrorHandler(resetMenu))
 
 	bot.Use(middleware.Recover())
-
 	bot.Use(ybot.AddLogger)
-	bot.Use(ybot.AddCtx)
+
+	bot.Use(func(next telebot.HandlerFunc) telebot.HandlerFunc {
+		return func(c telebot.Context) error {
+			if b.stopping.Load() {
+				ybot.Logger(c).Debug("ignoring update because bot is stopping")
+				return nil
+			}
+			return next(c)
+		}
+	})
+	bot.Use(ybot.TakeMutex(b.m))
+
+	bot.Use(ybot.AddCtx(b.ctx))
 
 	bot.Use(ybot.LogEvent)
 	bot.Use(Authenticate(b.s))
@@ -73,6 +92,12 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
 	bot.Handle(&resetButton, b.CommandReset, ybot.AddTag("reset_button"))
 	bot.Handle(telebot.OnText, b.OnText, ybot.AddTag("chat_completion"))
+}
+
+func (b *BotHandler) Wait() {
+	b.stopping.Store(true)
+	b.m.Lock()
+	b.m.Unlock()
 }
 
 func (b *BotHandler) CommandStart(c telebot.Context) error {
