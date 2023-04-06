@@ -47,7 +47,7 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 }
 
 func NewSqlite(path string) *SqliteStore {
-	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=NORMAL&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
+	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=EXTRA&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
 	db := sqlx.MustConnect("sqlite3", dsn)
 	return &SqliteStore{db: db}
 }
