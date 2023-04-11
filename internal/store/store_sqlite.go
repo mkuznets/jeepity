@@ -78,9 +78,9 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	return &user, nil
 }
 
-func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
+func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	if err := s.Init(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	u := *user
@@ -94,7 +94,7 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) error {
 	ON CONFLICT DO NOTHING`
 
 	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt)
-	return err
+	return &u, err
 }
 
 func (s *SqliteStore) ApproveUser(ctx context.Context, chatId int64) error {

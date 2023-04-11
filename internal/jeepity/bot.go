@@ -12,7 +12,6 @@ import (
 	"golang.org/x/exp/slog"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
-	"mkuznets.com/go/ytils/ycrypto"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -134,19 +133,8 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	}
 
 	for _, msg := range previousMsgs {
-		switch msg.Version {
-		case store.MessageVersionV0:
-			revealed, err := ycrypto.Reveal(msg.Message)
-			if err != nil {
-				return fmt.Errorf("message reveal: %w", err)
-			}
-			msg.Message = revealed
-		case store.MessageVersionV1:
-			decrypted, err := b.e.Decrypt(user.Salt, msg.Message)
-			if err != nil {
-				return fmt.Errorf("message decrypt: %w", err)
-			}
-			msg.Message = decrypted
+		if err := b.e.DecryptMessage(user, msg); err != nil {
+			return fmt.Errorf("message id=%d DecryptMessage: %w", msg.Id, err)
 		}
 	}
 
@@ -234,12 +222,9 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	})
 
 	for _, msg := range msgs {
-		encrypted, err := b.e.Encrypt(user.Salt, msg.Message)
-		if err != nil {
+		if err := b.e.EncryptMessage(user, msg); err != nil {
 			return fmt.Errorf("message encrypt: %w", err)
 		}
-		msg.Message = encrypted
-		msg.Version = store.MessageVersionV1
 	}
 
 	if err := b.s.PutMessages(ctx, msgs); err != nil {

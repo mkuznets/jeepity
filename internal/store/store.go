@@ -10,6 +10,7 @@ type MessageVersion int
 const (
 	MessageVersionV0 MessageVersion = iota
 	MessageVersionV1
+	MessageVersionV2
 )
 
 type User struct {
@@ -45,7 +46,7 @@ type Usage struct {
 
 type Store interface {
 	GetUser(ctx context.Context, chatId int64) (*User, error)
-	PutUser(ctx context.Context, user *User) error
+	PutUser(ctx context.Context, user *User) (*User, error)
 	ApproveUser(ctx context.Context, chatId int64) error
 
 	GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error)
