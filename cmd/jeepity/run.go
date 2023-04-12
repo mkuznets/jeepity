@@ -19,6 +19,10 @@ import (
 	"mkuznets.com/go/jeepity/internal/ybot"
 )
 
+const (
+	longPollTimeout = 5 * time.Second
+)
+
 type RunCommand struct {
 	OpenAiToken        string `long:"openai-token" env:"OPENAI_TOKEN" description:"OpenAI API token" required:"true"`
 	TelegramBotToken   string `long:"telegram-bot-token" env:"TELEGRAM_BOT_TOKEN" description:"Telegram bot token" required:"true"`
@@ -35,7 +39,7 @@ type RunCommand struct {
 func (r *RunCommand) Init(*App) error {
 	pref := telebot.Settings{
 		Token:  r.TelegramBotToken,
-		Poller: &telebot.LongPoller{Timeout: 5 * time.Second},
+		Poller: &telebot.LongPoller{Timeout: longPollTimeout},
 		OnError: func(err error, c telebot.Context) {
 			logger := slog.Default()
 			if c != nil {
@@ -47,7 +51,7 @@ func (r *RunCommand) Init(*App) error {
 
 	bot, err := telebot.NewBot(pref)
 	if err != nil {
-		return err
+		return fmt.Errorf("NewBot: %w", err)
 	}
 
 	ctx, critCtx := yctx.WithTerminator(context.Background())
@@ -73,7 +77,7 @@ func (r *RunCommand) Init(*App) error {
 
 func (r *RunCommand) Validate() error {
 	if _, err := yfs.EnsureDir(r.DataDir); err != nil {
-		return err
+		return fmt.Errorf("EnsureDir: %w", err)
 	}
 	return nil
 }
@@ -87,19 +91,19 @@ func (r *RunCommand) Execute([]string) error {
 	})
 
 	g.Go(func() error {
-		select {
-		case <-r.ctx.Done():
-			slog.Debug("waiting for handlers to finish")
-			r.bh.Wait()
+		<-r.ctx.Done()
 
-			slog.Debug("stopping bot")
-			r.bot.Stop()
-		}
+		slog.Debug("waiting for handlers to finish")
+		r.bh.Wait()
+
+		slog.Debug("stopping bot")
+		r.bot.Stop()
+
 		return nil
 	})
 
 	if err := g.Wait(); err != nil {
-		return err
+		return fmt.Errorf("errgroup: %w", err)
 	}
 
 	slog.Debug("cleanup")

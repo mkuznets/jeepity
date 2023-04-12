@@ -24,11 +24,17 @@ const (
 	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Answer as concisely as possible`
 	gptModel            = "gpt-3.5-turbo"
 	gptUser             = "jeepity"
+
+	backoffDuration = 500 * time.Millisecond
+	backoffRepeats  = 5
+	backoffFactor   = 1.5
 )
 
 var (
 	ErrNotApproved    = errors.New("not approved")
 	ErrContextTooLong = errors.New("context too long")
+	ErrNoChoices      = errors.New("no choices")
+	ErrUserNotFound   = errors.New("user not found")
 	ErrsPersistent    = []error{
 		ErrContextTooLong,
 	}
@@ -97,8 +103,8 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 
 func (b *BotHandler) Wait() {
 	b.stopping.Store(true)
+	defer b.m.Unlock()
 	b.m.Lock()
-	b.m.Unlock()
 }
 
 func (b *BotHandler) CommandStart(c telebot.Context) error {
@@ -107,7 +113,10 @@ func (b *BotHandler) CommandStart(c telebot.Context) error {
 
 func (b *BotHandler) CommandReset(c telebot.Context) error {
 	ctx := ybot.Ctx(c)
-	user := c.Get(ctxKeyUser).(*store.User)
+	user, ok := c.Get(ctxKeyUser).(*store.User)
+	if !ok {
+		return ErrUserNotFound
+	}
 
 	if err := b.s.ClearMessages(ctx, user.ChatId); err != nil {
 		return err
@@ -119,7 +128,10 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 func (b *BotHandler) OnText(c telebot.Context) error {
 	ctx := ybot.Ctx(c)
 	logger := ybot.Logger(c)
-	user := c.Get(ctxKeyUser).(*store.User)
+	user, ok := c.Get(ctxKeyUser).(*store.User)
+	if !ok {
+		return ErrUserNotFound
+	}
 
 	cancel := ybot.NotifyTyping(ctx, c)
 	defer cancel()
@@ -167,9 +179,9 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	var resp openai.ChatCompletionResponse
 
 	backoff := &strategy.Backoff{
-		Duration: 500 * time.Millisecond,
-		Repeats:  5,
-		Factor:   1.5,
+		Duration: backoffDuration,
+		Repeats:  backoffRepeats,
+		Factor:   backoffFactor,
 		Jitter:   true,
 	}
 
@@ -212,7 +224,7 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	}
 
 	if len(resp.Choices) < 1 {
-		return fmt.Errorf("no choices returned")
+		return ErrNoChoices
 	}
 
 	chatResponse := resp.Choices[0].Message.Content

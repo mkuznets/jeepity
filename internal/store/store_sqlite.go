@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -13,7 +14,7 @@ import (
 
 	"mkuznets.com/go/jeepity/sql/sqlite"
 
-	// Required to load "sqlite" driver
+	// Required to load "sqlite" driver.
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -31,6 +32,7 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 	if s.initialised {
 		return nil
 	}
+
 	content, err := sqlite.FS.ReadFile("schema.sql")
 	if err != nil {
 		return err
@@ -46,6 +48,7 @@ func (s *SqliteStore) Init(ctx context.Context) error {
 		return err
 	}
 	s.initialised = true
+
 	return nil
 }
 
@@ -61,6 +64,7 @@ func (s *SqliteStore) Close() {
 func NewSqlite(path string) *SqliteStore {
 	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=EXTRA&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
 	db := sqlx.MustConnect("sqlite3", dsn)
+
 	return &SqliteStore{db: db}
 }
 
@@ -72,11 +76,12 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	var user User
 	query := `SELECT chat_id, approved, username, full_name, salt, created_at, updated_at FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
+		if errors.Is(err, sql.ErrNoRows) {
+			return &user, nil
 		}
 		return nil, err
 	}
+
 	return &user, nil
 }
 
@@ -96,6 +101,7 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	ON CONFLICT DO NOTHING`
 
 	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt)
+
 	return &u, err
 }
 

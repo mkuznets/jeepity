@@ -9,6 +9,10 @@ import (
 	"mkuznets.com/go/jeepity/internal/store"
 )
 
+var (
+	ErrMessageVersion = fmt.Errorf("unsupported message version")
+)
+
 type Cryptor interface {
 	EncryptMessage(user *store.User, message *store.Message) error
 	DecryptMessage(user *store.User, message *store.Message) error
@@ -50,7 +54,7 @@ func (e *aesEncryptor) DecryptMessage(user *store.User, message *store.Message) 
 		}
 		message.Message = string(decrypted)
 	default:
-		return fmt.Errorf("unsupported message version: %d", message.Version)
+		return fmt.Errorf("%w: %d", ErrMessageVersion, message.Version)
 	}
 	return nil
 }

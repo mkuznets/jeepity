@@ -1,6 +1,8 @@
 package jeepity
 
 import (
+	"errors"
+	"fmt"
 	"github.com/mkuznets/telebot/v3"
 
 	"mkuznets.com/go/jeepity/internal/store"
@@ -17,7 +19,7 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 
 			u, err := s.GetUser(ctx, sender.ID)
 			if err != nil {
-				return err
+				return fmt.Errorf("GetUser: %w", err)
 			}
 
 			if u == nil {
@@ -29,7 +31,7 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 				}
 				newUser, err := s.PutUser(ctx, u)
 				if err != nil {
-					return err
+					return fmt.Errorf("PutUser: %w", err)
 				}
 				u = newUser
 			}
@@ -53,10 +55,10 @@ func ErrorHandler(resetMenu *telebot.ReplyMarkup) telebot.MiddlewareFunc {
 				return nil
 			}
 
-			switch err {
-			case ErrNotApproved:
+			switch {
+			case errors.Is(err, ErrNotApproved):
 				return c.Send("⛔️ Вы не можете использовать этот бот")
-			case ErrContextTooLong:
+			case errors.Is(err, ErrContextTooLong):
 				return c.Send("⛔️ В текущем диалоге сликом много сообщений", resetMenu)
 			default:
 				return c.Send("❌ Что-то пошло не так. Пожалуйста, попробуйте еще раз")
