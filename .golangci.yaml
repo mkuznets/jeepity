@@ -1,0 +1,62 @@
+linters:
+  enable:
+    - errcheck
+    - exportloopref
+    - gocritic
+    - gocyclo
+    - gosimple
+    - govet
+    - ineffassign
+    - megacheck
+    - nakedret
+    - prealloc
+    - revive
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - whitespace
+    - errorlint
+    - forcetypeassert
+    - goerr113
+    - gomnd
+    - nilnil
+    - wrapcheck
+  fast: false
+  disable-all: true
+
+linters-settings:
+  staticcheck:
+    checks: [
+      "all",
+      "-SA5008",  # duplicate struct tag (used by github.com/jessevdk/go-flags)
+    ]
+  govet:
+    check-shadowing: false
+  revive:
+    min-confidence: 0.1
+    rules:
+      - name: var-naming
+        disabled: true
+  maligned:
+    suggest-new: true
+  goconst:
+    min-len: 2
+    min-occurrences: 2
+  lll:
+    line-length: 140
+  gocritic:
+    enabled-tags:
+      - performance
+      - style
+      - experimental
+  stylecheck:
+    checks: [
+      "all",
+      "-ST1003" # capitalization of initialisms)
+    ]
+  wrapcheck:
+    ignoreSigs:
+      - '.Errorf('
+      - 'func (github.com/mkuznets/telebot/v3.Context).Send'

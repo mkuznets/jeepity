@@ -8,6 +8,14 @@ repos:
       - id: mixed-line-ending
         args: [ --fix=lf ]
 
+  - repo: https://github.com/golangci/golangci-lint
+    rev: 59f1c6e4
+    hooks:
+      - id: golangci-lint
+        types: [ 'go' ]
+        pass_filenames: false
+        entry: golangci-lint run --new-from-rev=HEAD --fix --config .golangci.yaml
+
   - repo: https://github.com/mkuznets/pre-commit-hooks
     rev: v0.0.3
     hooks:

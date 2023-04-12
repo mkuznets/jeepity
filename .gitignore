@@ -9,6 +9,7 @@
 !/.dockerignore
 !/.github/**
 !/.pre-commit-config.yaml
+!/.golangci.yaml
 
 !*.go
 !*.sql
