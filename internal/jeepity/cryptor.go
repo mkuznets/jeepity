@@ -9,9 +9,7 @@ import (
 	"mkuznets.com/go/jeepity/internal/store"
 )
 
-var (
-	ErrMessageVersion = fmt.Errorf("unsupported message version")
-)
+var ErrMessageVersion = fmt.Errorf("unsupported message version")
 
 type Cryptor interface {
 	EncryptMessage(user *store.User, message *store.Message) error

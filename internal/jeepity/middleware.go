@@ -3,6 +3,7 @@ package jeepity
 import (
 	"errors"
 	"fmt"
+
 	"github.com/mkuznets/telebot/v3"
 
 	"mkuznets.com/go/jeepity/internal/store"
