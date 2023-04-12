@@ -2,6 +2,7 @@ package jeepity
 
 import (
 	"github.com/mkuznets/telebot/v3"
+
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
 )

@@ -2,10 +2,11 @@ package ybot
 
 import (
 	"context"
-	"github.com/mkuznets/telebot/v3"
-	"golang.org/x/exp/slog"
 	"sync"
 	"time"
+
+	"github.com/mkuznets/telebot/v3"
+	"golang.org/x/exp/slog"
 )
 
 const (

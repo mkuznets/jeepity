@@ -2,9 +2,10 @@ package ybot
 
 import (
 	"context"
+	"time"
+
 	"github.com/mkuznets/telebot/v3"
 	"mkuznets.com/go/ytils/ytime"
-	"time"
 )
 
 func NotifyTyping(ctx context.Context, c telebot.Context) context.CancelFunc {

@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
+
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/exp/slog"
-	"mkuznets.com/go/jeepity/sql/sqlite"
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
-	"time"
+
+	"mkuznets.com/go/jeepity/sql/sqlite"
 
 	// Required to load "sqlite" driver
 	_ "github.com/mattn/go-sqlite3"
@@ -187,7 +189,6 @@ func (s *SqliteStore) PutUsage(ctx context.Context, usage *Usage) error {
 		u.ChatId, u.UpdateId, u.Model, u.CompletionTokens, u.PromptTokens, u.TotalTokens, u.CreatedAt,
 	)
 	return err
-
 }
 
 func doTx(ctx context.Context, db *sqlx.DB, op func(tx *sqlx.Tx) error) error {

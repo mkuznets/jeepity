@@ -3,18 +3,20 @@ package main
 import (
 	"context"
 	"fmt"
+	"path"
+	"runtime/debug"
+	"time"
+
 	"github.com/mkuznets/telebot/v3"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
+	"mkuznets.com/go/ytils/yctx"
+	"mkuznets.com/go/ytils/yfs"
+
 	"mkuznets.com/go/jeepity/internal/jeepity"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
-	"mkuznets.com/go/ytils/yctx"
-	"mkuznets.com/go/ytils/yfs"
-	"path"
-	"runtime/debug"
-	"time"
 )
 
 type RunCommand struct {

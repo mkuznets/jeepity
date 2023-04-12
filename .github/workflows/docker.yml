@@ -39,7 +39,7 @@ jobs:
           TS=$(TZ=Etc/UTC date '+%Y%m%d%H%M%S')
           SHA=$(git rev-parse --short "$GITHUB_SHA")
           TAG="${TS}-${SHA}"
-          
+
           docker buildx build \
             --push \
             --platform linux/amd64,linux/arm64 \

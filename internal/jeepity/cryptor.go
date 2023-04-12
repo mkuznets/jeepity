@@ -3,8 +3,10 @@ package jeepity
 import (
 	"encoding/base64"
 	"fmt"
-	"mkuznets.com/go/jeepity/internal/store"
+
 	"mkuznets.com/go/ytils/ycrypto"
+
+	"mkuznets.com/go/jeepity/internal/store"
 )
 
 type Cryptor interface {

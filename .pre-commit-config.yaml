@@ -12,4 +12,4 @@ repos:
     rev: v0.0.3
     hooks:
       - id: format-go
-        args: [ "-l", "github.com/mkuznets/jeepity" ]
+        args: [ "-l", "mkuznets.com/go/jeepity" ]

@@ -4,18 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/go-pkgz/repeater"
 	"github.com/go-pkgz/repeater/strategy"
 	"github.com/mkuznets/telebot/v3"
 	"github.com/mkuznets/telebot/v3/middleware"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
+
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
-	"strings"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 const (
