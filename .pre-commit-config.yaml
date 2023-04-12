@@ -17,7 +17,8 @@ repos:
         entry: golangci-lint run --new-from-rev=HEAD --fix --config .golangci.yaml
 
   - repo: https://github.com/mkuznets/pre-commit-hooks
-    rev: v0.0.3
+    rev: v0.0.4
     hooks:
+      - id: go-mod-tidy
       - id: format-go
         args: [ "-l", "mkuznets.com/go/jeepity" ]
