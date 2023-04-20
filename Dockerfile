@@ -19,3 +19,5 @@ RUN apk add --no-cache --update ca-certificates && \
     rm -rf /var/cache/apk/*
 
 COPY --from=build /build/bin/jeepity /srv/jeepity
+
+CMD ["/srv/jeepity", "run"]
