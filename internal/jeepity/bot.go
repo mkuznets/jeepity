@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Answer as concisely as possible`
+	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Follow the user's instructions carefully. Respond using markdown. Provide very detailed answers with explanations and reasoning.`
 	gptModel            = "gpt-3.5-turbo"
 	gptUser             = "jeepity"
 
