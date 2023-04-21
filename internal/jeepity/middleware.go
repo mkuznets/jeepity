@@ -5,7 +5,9 @@ import (
 	"fmt"
 
 	"github.com/mkuznets/telebot/v3"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 
+	"mkuznets.com/go/jeepity/internal/locale"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
 )
@@ -48,7 +50,7 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 	}
 }
 
-func ErrorHandler(resetMenu *telebot.ReplyMarkup) telebot.MiddlewareFunc {
+func ErrorHandler() telebot.MiddlewareFunc {
 	return func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
 			err := next(c)
@@ -56,13 +58,19 @@ func ErrorHandler(resetMenu *telebot.ReplyMarkup) telebot.MiddlewareFunc {
 				return nil
 			}
 
+			loc := locale.New(ybot.Lang(c))
+
 			switch {
 			case errors.Is(err, ErrNotApproved):
-				return c.Send("⛔️ Вы не можете использовать этот бот")
+				msg := locale.M(loc, &i18n.Message{ID: "err_not_approved_message", Other: "⛔ You cannot use this bot"})
+				return c.Send(msg)
 			case errors.Is(err, ErrContextTooLong):
-				return c.Send("⛔️ В текущем диалоге сликом много сообщений", resetMenu)
+				resetButtonText := locale.M(loc, &i18n.Message{ID: "reset_inline_button", Other: "Start again"})
+				msg := locale.M(loc, &i18n.Message{ID: "err_context_too_long_message", Other: "⛔ The conversation is too long"})
+				return c.Send(msg, ybot.SingleButtonMenu("reset", resetButtonText))
 			default:
-				return c.Send("❌ Что-то пошло не так. Пожалуйста, попробуйте еще раз")
+				msg := locale.M(loc, &i18n.Message{ID: "err_default_message", Other: "❌ Something went wrong. Please try again"})
+				return c.Send(msg)
 			}
 		}
 	}

@@ -13,6 +13,7 @@
 
 !*.go
 !*.sql
+!*.toml
 
 !go.sum
 !go.mod

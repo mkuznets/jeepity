@@ -13,9 +13,11 @@ import (
 	"github.com/go-pkgz/repeater/strategy"
 	"github.com/mkuznets/telebot/v3"
 	"github.com/mkuznets/telebot/v3/middleware"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 
+	"mkuznets.com/go/jeepity/internal/locale"
 	"mkuznets.com/go/jeepity/internal/store"
 	"mkuznets.com/go/jeepity/internal/ybot"
 )
@@ -61,21 +63,32 @@ func NewBotHandler(ctx context.Context, openAiClient *openai.Client, st store.St
 }
 
 func (b *BotHandler) Configure(bot *telebot.Bot) {
-	// # Menus and buttons
-
-	resetMenu := bot.NewMarkup()
-	resetMenu.ResizeKeyboard = true
-	resetButton := resetMenu.Data("Начать заново", "reset")
-	resetMenu.Inline(resetMenu.Row(resetButton))
-
 	// # Middleware
+
+	for _, lang := range []string{"en", "ru"} {
+		loc := locale.New(lang)
+		commands := []telebot.Command{
+			{
+				Text:        "reset",
+				Description: locale.M(loc, &i18n.Message{ID: "reset_bot_command", Other: "Start a new conversation"}),
+			},
+			{
+				Text:        "help",
+				Description: locale.M(loc, &i18n.Message{ID: "help_bot_command", Other: "Bot description"}),
+			},
+		}
+		if err := bot.SetCommands(commands, lang); err != nil {
+			slog.Error("SetCommands", err, slog.String("lang", lang))
+		}
+	}
 
 	// ErrorHandler must be the first to catch any possible errors
 	// from other middlewares and reply to the user.
-	bot.Use(ErrorHandler(resetMenu))
+	bot.Use(ErrorHandler())
 
 	bot.Use(middleware.Recover())
 	bot.Use(ybot.AddLogger)
+	bot.Use(middleware.AutoRespond())
 
 	bot.Use(func(next telebot.HandlerFunc) telebot.HandlerFunc {
 		return func(c telebot.Context) error {
@@ -95,9 +108,10 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 
 	// # Handlers
 
-	bot.Handle("/start", b.CommandStart, ybot.AddTag("start"))
+	bot.Handle("/start", b.CommandHelp, ybot.AddTag("start"))
+	bot.Handle("/help", b.CommandHelp, ybot.AddTag("help"))
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
-	bot.Handle(&resetButton, b.CommandReset, ybot.AddTag("reset_button"))
+	bot.Handle(&telebot.Btn{Unique: "reset"}, b.CommandReset, ybot.AddTag("reset_button"))
 	bot.Handle(telebot.OnText, b.OnText, ybot.AddTag("chat_completion"))
 }
 
@@ -107,8 +121,10 @@ func (b *BotHandler) Wait() {
 	b.m.Lock()
 }
 
-func (b *BotHandler) CommandStart(c telebot.Context) error {
-	return c.Send("Hello! You can start using the bot now")
+func (b *BotHandler) CommandHelp(c telebot.Context) error {
+	loc := locale.New(ybot.Lang(c))
+	msg := locale.M(loc, &i18n.Message{ID: "help_message", Other: "Hi, I'm Jeepity"})
+	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, DisableWebPagePreview: true})
 }
 
 func (b *BotHandler) CommandReset(c telebot.Context) error {
@@ -117,12 +133,17 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 	if !ok {
 		return ErrUserNotFound
 	}
+	loc := locale.New(ybot.Lang(c))
 
 	if err := b.s.ClearMessages(ctx, user.ChatId); err != nil {
 		return err
 	}
 
-	return c.Send("✅ Начат новый диалог. ChatGPT не будет помнить предыдущих сообщений.")
+	msg := locale.M(loc, &i18n.Message{
+		ID:    "reset_message",
+		Other: "✅ New conversation initiated. ChatGPT will not remember previous messages.",
+	})
+	return c.Send(msg)
 }
 
 func (b *BotHandler) OnText(c telebot.Context) error {

@@ -46,6 +46,14 @@ func AddLogger(next telebot.HandlerFunc) telebot.HandlerFunc {
 	}
 }
 
+func Lang(c telebot.Context) string {
+	lang := c.Sender().LanguageCode
+	if lang == "" {
+		lang = "en"
+	}
+	return lang
+}
+
 func Ctx(c telebot.Context) context.Context {
 	if ctx, ok := c.Get(ctxKeyCtx).(context.Context); ok {
 		return ctx

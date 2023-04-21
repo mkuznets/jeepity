@@ -16,7 +16,7 @@ type Global struct{}
 type App struct {
 	GlobalOpts *Global `group:"Global Options"`
 
-	RunCmd *RunCommand `command:"run" description:"CommandStart the service"`
+	RunCmd *RunCommand `command:"run" description:"Start the service"`
 }
 
 func init() {

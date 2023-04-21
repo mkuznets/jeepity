@@ -1,0 +1,20 @@
+err_context_too_long_message = "⛔ The conversation is too long"
+err_default_message = "❌ Something went wrong. Please try again"
+err_not_approved_message = "⛔ You cannot use this bot"
+reset_message = "✅ New conversation started. ChatGPT will not remember previous messages."
+help_message = """
+Jeepity is a chatbot based on the large language model GPT developed by OpenAI. Only GPT-3.5 is currently supported. The free version of OpenAI's own chatbot, [ChatGPT](https://en.wikipedia.org/wiki/ChatGPT), also runs on this model.
+
+The bot understands different languages and can translate between them. It can also hold conversations, provide summaries of text, generate new texts on a given topic, write code in programming languages, and much more.
+
+Jeepity only understands text messages. When generating a response, the language model relies only on the information it was presented during training. GPT-3.5 was trained in the fall of 2021, so it has no knowledge of more recent events. It has no access to the internet to search for new facts or update data.
+
+The bot keeps the context of your conversation for one hour from the time of the last message. This allows you to ask follow-up questions or ask the bot to correct its generated text without re-entering the original prompt. You can reset the conversation manually using the /reset command.
+
+Be careful: the bot may generate inaccurate information, false facts, fictitious personalities, and sometimes attribute abilities that it doesn't actually have.
+"""
+
+reset_inline_button = "Start again"
+
+reset_bot_command = "Start a new conversation"
+help_bot_command = "About the bot"
