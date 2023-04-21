@@ -77,7 +77,7 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	query := `SELECT chat_id, approved, username, full_name, salt, created_at, updated_at FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return &user, nil
+			return nil, nil // nolint:nilnil // nil value is used upstream
 		}
 		return nil, err
 	}
