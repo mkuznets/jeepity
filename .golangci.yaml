@@ -22,7 +22,6 @@ linters:
     - goerr113
     - gomnd
     - nilnil
-    - wrapcheck
   fast: false
   disable-all: true
 
@@ -56,7 +55,3 @@ linters-settings:
       "all",
       "-ST1003" # capitalization of initialisms)
     ]
-  wrapcheck:
-    ignoreSigs:
-      - '.Errorf('
-      - 'func (github.com/mkuznets/telebot/v3.Context).Send'

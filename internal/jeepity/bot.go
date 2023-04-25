@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -44,6 +45,7 @@ var (
 
 type BotHandler struct {
 	ctx      context.Context
+	bot      *telebot.Bot
 	ai       *openai.Client
 	s        store.Store
 	e        Cryptor
@@ -63,6 +65,8 @@ func NewBotHandler(ctx context.Context, openAiClient *openai.Client, st store.St
 }
 
 func (b *BotHandler) Configure(bot *telebot.Bot) {
+	b.bot = bot
+
 	// # Middleware
 
 	for _, lang := range []string{"en", "ru"} {
@@ -112,7 +116,8 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Handle("/help", b.CommandHelp, ybot.AddTag("help"))
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
 	bot.Handle(&telebot.Btn{Unique: "reset"}, b.CommandReset, ybot.AddTag("reset_button"))
-	bot.Handle(telebot.OnText, b.OnText, ybot.AddTag("chat_completion"))
+	bot.Handle(telebot.OnVoice, b.Transcribe, ybot.AddTag("transcribe"))
+	bot.Handle(telebot.OnText, b.Complete, ybot.AddTag("chat_completion"))
 	bot.Handle(telebot.OnMedia, b.Unsupported, ybot.AddTag("media"))
 }
 
@@ -153,16 +158,84 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 	return c.Send(msg)
 }
 
-func (b *BotHandler) OnText(c telebot.Context) error {
+func (b *BotHandler) Transcribe(c telebot.Context) error {
 	ctx := ybot.Ctx(c)
+	logger := ybot.Logger(c)
+
+	isForwarded := c.Message().OriginalUnixtime != 0
+
+	cancelNotify := ybot.NotifyTyping(ctx, c)
+	defer cancelNotify()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute)
+	defer cancel()
+
+	tmpFile, err := os.CreateTemp("", "jeepity-voice*.ogg")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	mp3FilePath := tmpFile.Name() + ".mp3"
+
+	defer func() {
+		_ = tmpFile.Close()
+		_ = os.Remove(tmpFile.Name())
+		_ = os.Remove(mp3FilePath)
+	}()
+
+	if err := b.bot.Download(&c.Message().Voice.File, tmpFile.Name()); err != nil {
+		return fmt.Errorf("download voice message: %w", err)
+	}
+	_ = tmpFile.Sync()
+
+	logger.Debug("voice file downloaded", slog.String("path", tmpFile.Name()))
+
+	conv := NewOggMp3Converter(tmpFile.Name(), mp3FilePath)
+	if err := conv.Command(ctx).Run(); err != nil {
+		return fmt.Errorf("convert voice message: %w", err)
+	}
+
+	resp, err := b.ai.CreateTranscription(ctx, openai.AudioRequest{
+		Model:    openai.Whisper1,
+		FilePath: mp3FilePath,
+	})
+	if err != nil {
+		return fmt.Errorf("CreateTranscription: %w", err)
+	}
+
+	loc := locale.New(ybot.Lang(c))
+	systemMsg := locale.M(loc, &i18n.Message{ID: "transcribe_message", Other: "Transcription:"})
+
+	err = c.Send(systemMsg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	if err != nil {
+		return fmt.Errorf("send message: %w", err)
+	}
+
+	err = c.Send(resp.Text)
+	if err != nil {
+		return fmt.Errorf("send message: %w", err)
+	}
+
+	if isForwarded {
+		return nil
+	}
+
+	return b.doCompletion(ctx, c, resp.Text)
+}
+
+func (b *BotHandler) Complete(c telebot.Context) error {
+	ctx := ybot.Ctx(c)
+	cancel := ybot.NotifyTyping(ctx, c)
+	defer cancel()
+
+	return b.doCompletion(ctx, c, c.Message().Text)
+}
+
+func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text string) error {
 	logger := ybot.Logger(c)
 	user, ok := c.Get(ctxKeyUser).(*store.User)
 	if !ok {
 		return ErrUserNotFound
 	}
-
-	cancel := ybot.NotifyTyping(ctx, c)
-	defer cancel()
 
 	var (
 		reqMsgs []openai.ChatCompletionMessage
@@ -193,7 +266,7 @@ func (b *BotHandler) OnText(c telebot.Context) error {
 	msgs = append(msgs, &store.Message{
 		ChatId:  user.ChatId,
 		Role:    openai.ChatMessageRoleUser,
-		Message: c.Text(),
+		Message: text,
 	})
 
 	reqMsgs = append(reqMsgs, messagesToOpenAiMessages(msgs)...)
