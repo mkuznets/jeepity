@@ -13,6 +13,7 @@ The bot keeps the context of your conversation for one hour from the time of the
 
 Be careful: the bot may generate inaccurate information, false facts, fictitious personalities, and sometimes attribute abilities that it doesn't actually have.
 """
+unsupported_message = "_Jeepity only supports text messages_"
 
 reset_inline_button = "Start again"
 

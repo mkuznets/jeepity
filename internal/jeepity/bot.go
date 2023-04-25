@@ -113,6 +113,7 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
 	bot.Handle(&telebot.Btn{Unique: "reset"}, b.CommandReset, ybot.AddTag("reset_button"))
 	bot.Handle(telebot.OnText, b.OnText, ybot.AddTag("chat_completion"))
+	bot.Handle(telebot.OnMedia, b.Unsupported, ybot.AddTag("media"))
 }
 
 func (b *BotHandler) Wait() {
@@ -125,6 +126,12 @@ func (b *BotHandler) CommandHelp(c telebot.Context) error {
 	loc := locale.New(ybot.Lang(c))
 	msg := locale.M(loc, &i18n.Message{ID: "help_message", Other: "Hi, I'm Jeepity"})
 	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, DisableWebPagePreview: true})
+}
+
+func (b *BotHandler) Unsupported(c telebot.Context) error {
+	loc := locale.New(ybot.Lang(c))
+	msg := locale.M(loc, &i18n.Message{ID: "unsupported_message", Other: "_Jeepity only supports text messages_"})
+	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 }
 
 func (b *BotHandler) CommandReset(c telebot.Context) error {
