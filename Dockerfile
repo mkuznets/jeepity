@@ -15,7 +15,7 @@ RUN git config --global --add safe.directory /build && \
     make build
 
 FROM alpine:3.17.2
-RUN apk add --no-cache --update ca-certificates && \
+RUN apk add --no-cache --update ca-certificates ffmpeg && \
     rm -rf /var/cache/apk/*
 
 COPY --from=build /build/bin/jeepity /srv/jeepity
