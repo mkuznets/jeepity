@@ -104,6 +104,9 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 		}
 	})
 	bot.Use(ybot.TakeMutex(b.m))
+	bot.Use(ybot.Sequential(func(c telebot.Context) string {
+		return fmt.Sprintf("%d", c.Sender().ID)
+	}))
 
 	bot.Use(ybot.AddCtx(b.ctx))
 
