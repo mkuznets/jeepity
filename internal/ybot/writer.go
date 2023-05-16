@@ -71,9 +71,14 @@ func (w *Writer) Close() {
 	defer w.mu.Unlock()
 
 	message := w.buf.String()
-	_, err := w.bot.Edit(w.msg, message)
-	if err != nil {
-		slog.Error("writer edit", err)
+	_, mErr := w.bot.Edit(w.msg, message, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	if mErr != nil {
+		slog.Error("closing writer: markdown edit", mErr)
+
+		_, pErr := w.bot.Edit(w.msg, message)
+		if pErr != nil {
+			slog.Error("closing writer: plaintext edit", mErr)
+		}
 	}
 }
 
