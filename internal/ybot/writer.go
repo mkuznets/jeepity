@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	writerUpdateInterval = 1500 * time.Millisecond
+	writerUpdateInterval = 3000 * time.Millisecond
 )
 
 type Writer struct {
