@@ -34,15 +34,21 @@ jobs:
         with:
           registry-type: public
 
-      - name: Build and push Docker image
+      - name: Compute image metadata
+        id: image
         run: |
           TS=$(TZ=Etc/UTC date '+%Y%m%d%H%M%S')
           SHA=$(git rev-parse --short "$GITHUB_SHA")
           TAG="${TS}-${SHA}"
+          echo "tag=${TAG}" > "$GITHUB_OUTPUT"
 
-          docker buildx build \
-            --push \
-            --platform linux/amd64,linux/arm64 \
-            -t public.ecr.aws/mkuznets/jeepity:latest \
-            -t "public.ecr.aws/mkuznets/jeepity:${TAG}" \
-            .
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v4
+        with:
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          tags: |-
+            public.ecr.aws/mkuznets/jeepity:latest
+            public.ecr.aws/mkuznets/jeepity:${{ steps.image.outputs.tag }}
