@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	dbFilename = "jeepity.db"
+	dbFilename = "jeepity-v2.db"
 )
 
 // Global is a group of common flags for all subcommands.

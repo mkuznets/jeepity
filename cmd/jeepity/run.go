@@ -56,9 +56,9 @@ func (r *RunCommand) Init(*App) error {
 
 	ctx, critCtx := yctx.WithTerminator(context.Background())
 
-	st := store.NewSqlite(path.Join(r.DataDir, dbFilename))
-	if err := st.Init(ctx); err != nil {
-		return fmt.Errorf("sqlite store init: %w", err)
+	st, err := store.NewSqlite(path.Join(r.DataDir, dbFilename))
+	if err != nil {
+		return fmt.Errorf("store.NewSqlite: %w", err)
 	}
 
 	ai := openai.NewClient(r.OpenAiToken)

@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"regexp"
+	"sort"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -23,31 +25,79 @@ const (
 	SaltLength      = 32
 )
 
+var reMigrationFilename = regexp.MustCompile(`^(\d+)_.*\.sql$`)
+
 type SqliteStore struct {
-	db          *sqlx.DB
-	initialised bool
+	db *sqlx.DB
 }
 
-func (s *SqliteStore) Init(ctx context.Context) error {
-	if s.initialised {
-		return nil
+type migrationFile struct {
+	id       uint32
+	filename string
+	sql      string
+}
+
+func (s *SqliteStore) init(ctx context.Context) error {
+	var currentVersion uint32
+	if err := s.db.GetContext(ctx, &currentVersion, "PRAGMA user_version"); err != nil {
+		return fmt.Errorf("init schema: %w", err)
 	}
 
-	content, err := sqlite.FS.ReadFile("schema.sql")
+	entries, err := sqlite.FS.ReadDir(".")
 	if err != nil {
 		return err
 	}
 
-	err = doTx(ctx, s.db, func(tx *sqlx.Tx) error {
-		if _, err := tx.ExecContext(ctx, string(content)); err != nil {
-			return fmt.Errorf("init schema: %w", err)
+	migrations := make([]*migrationFile, 0, len(entries))
+	for _, entry := range entries {
+		id, err := getMigrationId(entry.Name())
+		if err != nil {
+			return err
 		}
+
+		content, err := sqlite.FS.ReadFile(entry.Name())
+		if err != nil {
+			return err
+		}
+
+		if id <= currentVersion {
+			continue
+		}
+
+		migrations = append(migrations, &migrationFile{
+			id:       id,
+			filename: entry.Name(),
+			sql:      string(content),
+		})
+	}
+
+	if len(migrations) == 0 {
+		return nil
+	}
+
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].id < migrations[j].id
+	})
+
+	err = doTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		for _, migration := range migrations {
+			if _, err := tx.ExecContext(ctx, migration.sql); err != nil {
+				return fmt.Errorf("init schema: %w", err)
+			}
+
+			slog.Debug("migration applied", "id", migration.id, "filename", migration.filename)
+		}
+
+		pragmaQuery := fmt.Sprintf("PRAGMA user_version = %d", migrations[len(migrations)-1].id)
+		if _, err := tx.ExecContext(ctx, pragmaQuery); err != nil {
+			return fmt.Errorf("PRAGMA: %w", err)
+		}
+
 		return nil
 	})
 	if err != nil {
 		return err
 	}
-	s.initialised = true
 
 	return nil
 }
@@ -61,18 +111,19 @@ func (s *SqliteStore) Close() {
 	}
 }
 
-func NewSqlite(path string) *SqliteStore {
+func NewSqlite(path string) (*SqliteStore, error) {
 	dsn := "file:" + path + "?cache=shared&mode=rwc&_journal_mode=WAL&_synchronous=EXTRA&_writable_schema=0&_foreign_keys=1&_txlock=immediate"
 	db := sqlx.MustConnect("sqlite3", dsn)
 
-	return &SqliteStore{db: db}
+	s := &SqliteStore{db: db}
+	if err := s.init(context.Background()); err != nil {
+		return nil, fmt.Errorf("sqlite store init: %w", err)
+	}
+
+	return s, nil
 }
 
 func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) {
-	if err := s.Init(ctx); err != nil {
-		return nil, err
-	}
-
 	var user User
 	query := `SELECT chat_id, approved, username, full_name, salt, created_at, updated_at FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
@@ -86,10 +137,6 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 }
 
 func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
-	if err := s.Init(ctx); err != nil {
-		return nil, err
-	}
-
 	u := *user
 	u.Salt = yrand.Base62(SaltLength)
 	u.CreatedAt = ytime.Now()
@@ -106,20 +153,12 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 }
 
 func (s *SqliteStore) ApproveUser(ctx context.Context, chatId int64) error {
-	if err := s.Init(ctx); err != nil {
-		return err
-	}
-
 	query := `UPDATE users SET approved = true and updated_at = ? WHERE chat_id = ?`
 	_, err := s.db.ExecContext(ctx, query, ytime.Now(), chatId)
 	return err
 }
 
 func (s *SqliteStore) GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error) {
-	if err := s.Init(ctx); err != nil {
-		return nil, err
-	}
-
 	retentionQuery := `SELECT COUNT(*) FROM messages WHERE created_at > ? AND chat_id = ?`
 	var recentMessages int
 	retentionThreshold := ytime.New(time.Now().Add(-DialogRetention))
@@ -149,10 +188,6 @@ func (s *SqliteStore) GetDialogMessages(ctx context.Context, chatId int64) ([]*M
 }
 
 func (s *SqliteStore) PutMessages(ctx context.Context, messages []*Message) error {
-	if err := s.Init(ctx); err != nil {
-		return err
-	}
-
 	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		query := `
 		INSERT INTO messages (chat_id, role, message, created_at, version)
@@ -171,18 +206,11 @@ func (s *SqliteStore) PutMessages(ctx context.Context, messages []*Message) erro
 }
 
 func (s *SqliteStore) ClearMessages(ctx context.Context, chatId int64) error {
-	if err := s.Init(ctx); err != nil {
-		return err
-	}
 	_, err := s.db.ExecContext(ctx, `DELETE FROM messages WHERE chat_id = ?`, chatId)
 	return err
 }
 
 func (s *SqliteStore) PutUsage(ctx context.Context, usage *Usage) error {
-	if err := s.Init(ctx); err != nil {
-		return err
-	}
-
 	u := *usage
 	u.CreatedAt = ytime.Now()
 
@@ -214,4 +242,17 @@ func doTx(ctx context.Context, db *sqlx.DB, op func(tx *sqlx.Tx) error) error {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+func getMigrationId(filename string) (uint32, error) {
+	matches := reMigrationFilename.FindStringSubmatch(filename)
+	if len(matches) < 2 { // nolint:gomnd // matches[0] is the full string
+		return 0, fmt.Errorf("parse migration filename: %s", filename)
+	}
+	idTime, err := time.Parse("20060102150405", matches[1])
+	if err != nil {
+		return 0, err
+	}
+	epoch := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
+	return uint32(idTime.Unix() - epoch), nil
 }

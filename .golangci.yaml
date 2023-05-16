@@ -19,7 +19,6 @@ linters:
     - whitespace
     - errorlint
     - forcetypeassert
-    - goerr113
     - gomnd
     - nilnil
   fast: false
