@@ -20,6 +20,7 @@ type User struct {
 	Username string `db:"username"`
 	FullName string `db:"full_name"`
 	Salt     string `db:"salt"`
+	Model    string `db:"model"`
 
 	CreatedAt ytime.Time `db:"created_at"`
 	UpdatedAt ytime.Time `db:"updated_at"`

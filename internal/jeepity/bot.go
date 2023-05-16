@@ -29,13 +29,14 @@ import (
 const (
 	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Follow the user's instructions carefully. Respond using markdown. Provide very detailed answers with explanations and reasoning.`
 	gptUser             = "jeepity"
+	defaultGptModel     = openai.GPT3Dot5Turbo
 
 	backoffDuration = 500 * time.Millisecond
 	backoffRepeats  = 5
 	backoffFactor   = 1.5
 
 	streamCompletionTotalTimeout = 5 * time.Minute
-	streamCompletionIdleTimeout  = 80 * time.Second
+	streamCompletionIdleTimeout  = 30 * time.Second
 )
 
 var (
@@ -286,8 +287,13 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 
 	reqMsgs = append(reqMsgs, messagesToOpenAiMessages(msgs)...)
 
+	model := user.Model
+	if model == "" {
+		model = defaultGptModel
+	}
+
 	req := openai.ChatCompletionRequest{
-		Model:    openai.GPT3Dot5Turbo,
+		Model:    model,
 		User:     gptUser,
 		Messages: reqMsgs,
 	}

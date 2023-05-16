@@ -29,6 +29,10 @@ table "users" {
     null = false
     type = text
   }
+  column "model" {
+    null = true
+    type = text
+  }
 
   primary_key {
     columns = [column.chat_id]

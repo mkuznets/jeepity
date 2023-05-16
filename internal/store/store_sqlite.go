@@ -125,7 +125,7 @@ func NewSqlite(path string) (*SqliteStore, error) {
 
 func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) {
 	var user User
-	query := `SELECT chat_id, approved, username, full_name, salt, created_at, updated_at FROM users WHERE chat_id = ?`
+	query := `SELECT chat_id, approved, username, full_name, salt, coalesce(model, '') as model, created_at, updated_at FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // nolint:nilnil // nil value is used upstream
@@ -143,11 +143,11 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	u.UpdatedAt = ytime.Now()
 
 	query := `
-	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt, model)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT DO NOTHING`
 
-	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt)
+	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt, "")
 
 	return &u, err
 }
