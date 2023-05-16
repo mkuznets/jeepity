@@ -14,6 +14,8 @@
 !*.go
 !*.sql
 !*.toml
+!sql/**/*.hcl
+!sql/**/*.sum
 
 !go.sum
 !go.mod
