@@ -10,7 +10,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/mkuznets/telebot/v3 v3.1.5
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
-	github.com/sashabaranov/go-openai v1.5.3
+	github.com/sashabaranov/go-openai v1.9.4
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.9.0

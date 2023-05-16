@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
+	"golang.org/x/sync/errgroup"
+	"mkuznets.com/go/ytils/yctx"
 
 	"mkuznets.com/go/jeepity/internal/locale"
 	"mkuznets.com/go/jeepity/internal/store"
@@ -25,23 +28,32 @@ import (
 
 const (
 	initialSystemPrompt = `You are ChatGPT, a large language model trained by OpenAI. Follow the user's instructions carefully. Respond using markdown. Provide very detailed answers with explanations and reasoning.`
-	gptModel            = "gpt-3.5-turbo"
 	gptUser             = "jeepity"
 
 	backoffDuration = 500 * time.Millisecond
 	backoffRepeats  = 5
 	backoffFactor   = 1.5
+
+	streamCompletionTotalTimeout = 5 * time.Minute
+	streamCompletionIdleTimeout  = 80 * time.Second
 )
 
 var (
 	ErrNotApproved    = errors.New("not approved")
 	ErrContextTooLong = errors.New("context too long")
-	ErrNoChoices      = errors.New("no choices")
 	ErrUserNotFound   = errors.New("user not found")
 	ErrsPersistent    = []error{
 		ErrContextTooLong,
 	}
 )
+
+type Completion struct {
+	Model            string
+	Response         string
+	PromptTokens     int
+	CompletionTokens int
+	TotalTokens      int
+}
 
 type BotHandler struct {
 	ctx      context.Context
@@ -275,12 +287,10 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 	reqMsgs = append(reqMsgs, messagesToOpenAiMessages(msgs)...)
 
 	req := openai.ChatCompletionRequest{
-		Model:    gptModel,
+		Model:    openai.GPT3Dot5Turbo,
 		User:     gptUser,
 		Messages: reqMsgs,
 	}
-
-	var resp openai.ChatCompletionResponse
 
 	backoff := &strategy.Backoff{
 		Duration: backoffDuration,
@@ -289,54 +299,55 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 		Jitter:   true,
 	}
 
-	makeCompletion := func() error {
+	reply, err := b.bot.Send(c.Recipient(), "...")
+	if err != nil {
+		return err
+	}
+
+	var completion *Completion
+	completeFunc := func() error {
 		attrs := []slog.Attr{
 			slog.Int("context_length", len(reqMsgs)),
 		}
 		level := slog.LevelDebug
 		defer func() {
-			logger.LogAttrs(level, "CreateChatCompletion", attrs...)
+			logger.LogAttrs(level, "completion", attrs...)
 		}()
 
 		start := time.Now()
 
-		rctx, cancel := context.WithTimeout(ctx, time.Minute)
-		defer cancel()
+		r, cErr := b.makeStreamCompletion(ctx, reply, &req)
 
-		resp, err = b.ai.CreateChatCompletion(rctx, req)
+		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
 
-		attrs = append(attrs,
-			slog.Duration("duration", time.Since(start)),
-			slog.Int("prompt_tokens", resp.Usage.PromptTokens),
-			slog.Int("completion_tokens", resp.Usage.CompletionTokens),
-			slog.Int("total_tokens", resp.Usage.TotalTokens),
-		)
-
-		if err != nil {
-			attrs = append(attrs, slog.Any(slog.ErrorKey, err))
+		if cErr != nil {
+			attrs = append(attrs, slog.Any(slog.ErrorKey, cErr))
 			level = slog.LevelError
-			if strings.Contains(err.Error(), "reduce the length of the messages") {
+			if strings.Contains(cErr.Error(), "reduce the length of the messages") {
 				return ErrContextTooLong
 			}
-			return err
+			return cErr
 		}
+
+		attrs = append(attrs,
+			slog.String("model", r.Model),
+			slog.Int("prompt_tokens", r.PromptTokens),
+			slog.Int("completion_tokens", r.CompletionTokens),
+			slog.Int("total_tokens", r.TotalTokens),
+		)
+		completion = r
+
 		return nil
 	}
 
-	if err := repeater.New(backoff).Do(ctx, makeCompletion, ErrsPersistent...); err != nil {
+	if err := repeater.New(backoff).Do(ctx, completeFunc, ErrsPersistent...); err != nil {
 		return err
 	}
-
-	if len(resp.Choices) < 1 {
-		return ErrNoChoices
-	}
-
-	chatResponse := resp.Choices[0].Message.Content
 
 	msgs = append(msgs, &store.Message{
 		ChatId:  user.ChatId,
 		Role:    openai.ChatMessageRoleSystem,
-		Message: chatResponse,
+		Message: completion.Response,
 	})
 
 	for _, msg := range msgs {
@@ -349,26 +360,55 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 		return fmt.Errorf("put messages: %w", err)
 	}
 
-	usage := &store.Usage{
-		ChatId:           c.Sender().ID,
-		UpdateId:         c.Update().ID,
-		Model:            resp.Model,
-		CompletionTokens: resp.Usage.CompletionTokens,
-		PromptTokens:     resp.Usage.PromptTokens,
-		TotalTokens:      resp.Usage.TotalTokens,
-	}
-
-	if err := b.s.PutUsage(ctx, usage); err != nil {
-		logger.Error("PutUsage", err)
-	}
-
-	mErr := c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
-	if mErr != nil {
-		logger.Error("send markdown", mErr)
-		return c.Send(chatResponse, &telebot.SendOptions{ParseMode: telebot.ModeDefault})
-	}
-
 	return nil
+}
+
+func (b *BotHandler) makeStreamCompletion(ctx context.Context, responseMsg telebot.Editable, req *openai.ChatCompletionRequest) (*Completion, error) {
+	ctx, cancel := context.WithTimeout(ctx, streamCompletionTotalTimeout)
+	defer cancel()
+
+	hb := yctx.NewHeartbeat(ctx, streamCompletionIdleTimeout).Start()
+	defer hb.Close()
+
+	writer := ybot.NewWriter(hb.Context(), b.bot, responseMsg)
+
+	completion := &Completion{}
+
+	g, ctx := errgroup.WithContext(hb.Context())
+	g.Go(func() error {
+		stream, err := b.ai.CreateChatCompletionStream(ctx, *req)
+		if err != nil {
+			return fmt.Errorf("CreateChatCompletion: %w", err)
+		}
+		defer writer.Close()
+		defer stream.Close()
+
+		for {
+			response, err := stream.Recv()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					break
+				}
+				return fmt.Errorf("stream.Recv: %w", err)
+			}
+
+			completion.Model = response.Model
+			if len(response.Choices) > 0 {
+				writer.Write(response.Choices[0].Delta.Content)
+				hb.Beat()
+			}
+		}
+
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	completion.Response = writer.String()
+
+	return completion, nil
 }
 
 func messagesToOpenAiMessages(messages []*store.Message) []openai.ChatCompletionMessage {
