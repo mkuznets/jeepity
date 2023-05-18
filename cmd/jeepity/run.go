@@ -20,25 +20,44 @@ import (
 )
 
 const (
-	longPollTimeout = 5 * time.Second
+	longPollTimeout = 10 * time.Second
 )
 
 type RunCommand struct {
-	OpenAiToken        string `long:"openai-token" env:"OPENAI_TOKEN" description:"OpenAI API token" required:"true"`
-	TelegramBotToken   string `long:"telegram-bot-token" env:"TELEGRAM_BOT_TOKEN" description:"Telegram bot token" required:"true"`
-	DataDir            string `long:"data-dir" env:"DATA_DIR" description:"Data directory" required:"true"`
-	EncryptionPassword string `long:"encryption-password" env:"ENCRYPTION_PASSWORD" description:"Data encryption password"`
+	OpenAi   *OpenAi   `group:"OpenAI parameters" namespace:"openai" env-namespace:"OPENAI"`
+	Telegram *Telegram `group:"Telegram parameters" namespace:"telegram" env-namespace:"TELEGRAM"`
+	Data     *Data     `group:"Data parameters" namespace:"data" env-namespace:"DATA"`
+}
 
-	ctx     context.Context
-	critCtx context.Context
-	bot     *telebot.Bot
-	st      *store.SqliteStore
-	bh      *jeepity.BotHandler
+type OpenAi struct {
+	Token      string `long:"token" env:"TOKEN" description:"OpenAI API token" required:"true"`
+	ChatModel  string `long:"chat-model" env:"CHAT_MODEL" description:"OpenAI chat model" default:"gpt-3.5-turbo-0301"`
+	AudioModel string `long:"audio-model" env:"AUDIO_MODEL" description:"OpenAI audio transctiption model" default:"whisper-1"`
+}
+
+type Telegram struct {
+	BotToken string `long:"bot-token" env:"BOT_TOKEN" description:"Telegram bot token" required:"true"`
+}
+
+type Data struct {
+	Dir                string `long:"dir" env:"DIR" description:"Database directory" required:"true"`
+	EncryptionPassword string `long:"encryption-password" env:"ENCRYPTION_PASSWORD" description:"Encryption password for messages"`
 }
 
 func (r *RunCommand) Init(*App) error {
+	return nil
+}
+
+func (r *RunCommand) Validate() error {
+	if _, err := yfs.EnsureDir(r.Data.Dir); err != nil {
+		return fmt.Errorf("EnsureDir: %w", err)
+	}
+	return nil
+}
+
+func (r *RunCommand) Execute([]string) error {
 	pref := telebot.Settings{
-		Token:  r.TelegramBotToken,
+		Token:  r.Telegram.BotToken,
 		Poller: &telebot.LongPoller{Timeout: longPollTimeout},
 		OnError: func(err error, c telebot.Context) {
 			logger := slog.Default()
@@ -56,48 +75,32 @@ func (r *RunCommand) Init(*App) error {
 
 	ctx, critCtx := yctx.WithTerminator(context.Background())
 
-	st, err := store.NewSqlite(path.Join(r.DataDir, dbFilename))
+	st, err := store.NewSqlite(path.Join(r.Data.Dir, dbFilename))
 	if err != nil {
 		return fmt.Errorf("store.NewSqlite: %w", err)
 	}
 
-	ai := openai.NewClient(r.OpenAiToken)
-	e := jeepity.NewAesEncryptor(r.EncryptionPassword)
+	ai := openai.NewClient(r.OpenAi.Token)
+	e := jeepity.NewAesEncryptor(r.Data.EncryptionPassword)
 	bh := jeepity.NewBotHandler(critCtx, ai, st, e)
 	bh.Configure(bot)
 
-	r.ctx = ctx
-	r.critCtx = critCtx
-	r.bot = bot
-	r.st = st
-	r.bh = bh
-
-	return nil
-}
-
-func (r *RunCommand) Validate() error {
-	if _, err := yfs.EnsureDir(r.DataDir); err != nil {
-		return fmt.Errorf("EnsureDir: %w", err)
-	}
-	return nil
-}
-
-func (r *RunCommand) Execute([]string) error {
-	g, _ := errgroup.WithContext(r.critCtx)
+	g, _ := errgroup.WithContext(critCtx)
 
 	g.Go(func() error {
-		r.bot.Start()
+		slog.Debug("starting Telegram bot")
+		bot.Start()
 		return nil
 	})
 
 	g.Go(func() error {
-		<-r.ctx.Done()
+		<-ctx.Done()
 
 		slog.Debug("waiting for handlers to finish")
-		r.bh.Wait()
+		bh.Wait()
 
 		slog.Debug("stopping bot")
-		r.bot.Stop()
+		bot.Stop()
 
 		return nil
 	})
@@ -107,7 +110,7 @@ func (r *RunCommand) Execute([]string) error {
 	}
 
 	slog.Debug("cleanup")
-	r.st.Close()
+	st.Close()
 
 	return nil
 }
