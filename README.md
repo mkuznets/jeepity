@@ -12,14 +12,15 @@ Jeepity is a Telegram bot powered by [OpenAI](https://openai.com) GPT large lang
 * **Localisation.** Buttons, menus, and system messages are available in English and Russian. The language is
   selected automatically based on the Telegram interface language.
 * **Easy to self-host.** The bot compiles into a single binary and is also available as a Docker
-  container. Check out the tutorial on how to get it up and running in minutes on [fly.io](https://fly.io)!
+  container. Check out the [tutorial](#deploying-to-flyio) on how to get it up and running in minutes
+  on [fly.io](https://fly.io)!
 
 ## Quick Start
 
 ### Docker
 
 * Create a file named `.env` with the configuration (see [Configuration](#configuration))
-* Run `docker run --env-file .env public.ecr.aws/mkuznets/jeepity:latest`
+* Run `docker run --env-file .env ghcr.io/mkuznets/jeepity:latest`
 
 ### Docker Compose
 
@@ -34,7 +35,6 @@ Jeepity is a Telegram bot powered by [OpenAI](https://openai.com) GPT large lang
 
 ```shell
 # Requires Go 1.19+
-
 $ go install github.com/mkuznets/jeepity/cmd/jeepity@latest
 $ jeepity run --help
 ```
@@ -46,8 +46,8 @@ $ jeepity run --help
 ## Configuration
 
 Jeepity can be configured using environment variables
-(recommended), [.env file](https://github.com/joho/godotenv#godotenv--), or CLI
-arguments. Check `jeepity run --help` to see the list of available options.
+(recommended), .env file, or CLI arguments.
+Check `jeepity run --help` to see the list of available options.
 
 ```dotenv
 ## Required
@@ -71,6 +71,69 @@ DATA_DIR=./data
 ## If not set, the messages will still be encrypted with an empty password.
 #DATA_ENCRYPTION_PASSWORD=
 ```
+
+## Self-Hosting
+
+Some operational details:
+
+* The Telegram bot uses long-polling, so you do not need to expose it to the internet and set up a webhook.
+* Jeepity emits structured key-value logs to stderr. The is either human-readable [logfmt](https://brandur.org/logfmt)
+  or JSON, depending on whether the shell session is interactive.
+* Jeepity gracefully handles SIGTERM and SIGINT: it stops accepting new requests, waits for the ongoing requests to
+  finish, and only then shuts down. You can force the shutdown by sending one or two extra SIGTERM/SIGINT.
+* The data (users, chat history, etc.) is stored in a local SQLite database at `DATA_DIR`.
+* The messages are encrypted with AES using the configured password (`DATA_ENCRYPTION_PASSWORD`) and a
+  random per-user salt. When a conversation is reset (either manually or automatically), the messages are deleted.
+
+## Deploying to fly.io
+
+> I am not affiliated with fly.io in any way, just geniunely excited about how easy it is to deploy Jeepity there.
+
+[Fly.io](https://fly.io) is a Platform as a Service where most of the resources (apps, machines, volumes, etc.) are
+controlled using a command-line tool ([flyctl](https://fly.io/docs/flyctl)).
+However, with their new [Web CLI](https://community.fly.io/t/introducing-fly-io-terminal/10464) you do not even need to
+install anything!
+
+Jeepity works perfectly on their smallest instances (shared-cpu-1x 256mb) included in the free allowance (as long as you
+are eligible for it).
+
+Follow these steps to spin up a new app running Jeepity:
+
+1. Obtain an [OpenAI API key](https://platform.openai.com/account/api-keys) and
+   a [Telegram bot token](https://core.telegram.org/bots#how-do-i-create-a-bot).
+2. [Create a fly.io account](https://fly.io/app/sign-up).
+3. Go to [fly.io/terminal](https://fly.io/terminal) and click "Launch Web CLI".
+4. Run the following commands, one by one:
+
+```shell
+# Download the app template
+curl -fsSL https://raw.githubusercontent.com/mkuznets/jeepity/master/template.fly.toml >fly.toml
+
+# Create a fly app with an auto-generated name
+fly launch --generate-name --copy-config --force-machines --no-deploy
+
+# Create a 1GB volume to store the bot's database
+fly volumes create --region lhr --size 1 --yes jeepity_data
+```
+
+5. Configure Jeepity by running `fly secrets import`. The command should hang waiting for your input. Paste the
+   following text (fill the token values from step 1) and press Ctrl+D:
+
+```dotenv
+OPENAI_TOKEN=...
+TELEGRAM_BOT_TOKEN=...
+```
+
+6. Run `fly deploy` to start the deploy.
+7. Once the deployment is complete, run `fly logs`. You should see something like this:
+
+```dotenv
+[info]{"time":"...","level":"DEBUG","msg":"Starting Telegram bot..."}
+[info]{"time":"...","level":"INFO","msg":"Invite URL: https://t.me/<username>?start=<code>"}
+[info]{"time":"...","level":"INFO","msg":"(This URL is temporary, DO NOT SHARE IT WITH ANYONE)"}
+```
+
+8. The bot is up and running! Go to the invite URL to start using the bot!
 
 ## License
 

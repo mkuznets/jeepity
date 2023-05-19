@@ -3,7 +3,7 @@ kill_signal = "SIGINT"
 kill_timeout = "1m0s"
 
 [build]
-image = "public.ecr.aws/mkuznets/jeepity:latest"
+image = "ghcr.io/mkuznets/jeepity:latest"
 
 [env]
 DATA_DIR = "/data"
