@@ -93,6 +93,10 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 				Text:        "help",
 				Description: locale.M(loc, &i18n.Message{ID: "help_bot_command", Other: "Bot description"}),
 			},
+			{
+				Text:        "invite",
+				Description: locale.M(loc, &i18n.Message{ID: "invite_bot_command", Other: "Invite another user to this bot"}),
+			},
 		}
 		if err := bot.SetCommands(commands, lang); err != nil {
 			slog.Error("SetCommands", err, slog.String("lang", lang))
@@ -130,6 +134,7 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 
 	bot.Handle("/start", b.CommandHelp, ybot.AddTag("start"))
 	bot.Handle("/help", b.CommandHelp, ybot.AddTag("help"))
+	bot.Handle("/invite", b.CommandInvite, ybot.AddTag("invite"))
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
 	bot.Handle(&telebot.Btn{Unique: "reset"}, b.CommandReset, ybot.AddTag("reset_button"))
 	bot.Handle(telebot.OnVoice, b.Transcribe, ybot.AddTag("transcribe"))
@@ -147,6 +152,28 @@ func (b *BotHandler) CommandHelp(c telebot.Context) error {
 	loc := locale.New(ybot.Lang(c))
 	msg := locale.M(loc, &i18n.Message{ID: "help_message", Other: "Hi, I'm Jeepity"})
 	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, DisableWebPagePreview: true})
+}
+
+func (b *BotHandler) CommandInvite(c telebot.Context) error {
+	user, ok := c.Get(ctxKeyUser).(*store.User)
+	if !ok {
+		return ErrUserNotFound
+	}
+	if err := b.s.EnsureInviteCode(ybot.Ctx(c), user); err != nil {
+		return err
+	}
+
+	loc := locale.New(ybot.Lang(c))
+
+	msg := loc.MustLocalize(&i18n.LocalizeConfig{
+		DefaultMessage: &i18n.Message{
+			ID:    "invite_message",
+			Other: "This bot is invite-only. Share this URL to give access to another user:\n{{.Url}}",
+		},
+		TemplateData: map[string]interface{}{"Url": ybot.InviteUrl(b.bot.Me.Username, user.InviteCode)},
+	})
+
+	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeDefault, DisableWebPagePreview: true})
 }
 
 func (b *BotHandler) Unsupported(c telebot.Context) error {

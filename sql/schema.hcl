@@ -33,6 +33,14 @@ table "users" {
     null = true
     type = text
   }
+  column "invite_code" {
+    null = true
+    type = text
+  }
+  column "invited_by" {
+    null = true
+    type = integer
+  }
 
   primary_key {
     columns = [column.chat_id]
@@ -40,6 +48,9 @@ table "users" {
   index "users_chat_id_idx" {
     unique  = true
     columns = [column.chat_id]
+  }
+  index "users_invite_code_idx" {
+    columns = [column.invite_code]
   }
 
   check {

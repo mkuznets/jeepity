@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"mkuznets.com/go/ytils/yctx"
 	"mkuznets.com/go/ytils/yfs"
+	"mkuznets.com/go/ytils/yrand"
 
 	"mkuznets.com/go/jeepity/internal/jeepity"
 	"mkuznets.com/go/jeepity/internal/store"
@@ -20,7 +21,8 @@ import (
 )
 
 const (
-	longPollTimeout = 10 * time.Second
+	longPollTimeout  = 10 * time.Second
+	InviteCodeLenght = 16
 )
 
 type RunCommand struct {
@@ -80,6 +82,9 @@ func (r *RunCommand) Execute([]string) error {
 		return fmt.Errorf("store.NewSqlite: %w", err)
 	}
 
+	inviteCode := yrand.Base62(InviteCodeLenght)
+	st.SetDefaultInviteCode(inviteCode)
+
 	ai := openai.NewClient(r.OpenAi.Token)
 	e := jeepity.NewAesEncryptor(r.Data.EncryptionPassword)
 	bh := jeepity.NewBotHandler(critCtx, ai, st, e)
@@ -88,7 +93,10 @@ func (r *RunCommand) Execute([]string) error {
 	g, _ := errgroup.WithContext(critCtx)
 
 	g.Go(func() error {
-		slog.Debug("starting Telegram bot")
+		slog.Debug("Starting Telegram bot...")
+		slog.Info(fmt.Sprintf("Invite URL: %s", ybot.InviteUrl(bot.Me.Username, inviteCode)))
+		slog.Info("(This URL is temporary, DO NOT SHARE IT WITH ANYONE)")
+
 		bot.Start()
 		return nil
 	})

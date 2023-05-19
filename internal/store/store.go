@@ -15,12 +15,13 @@ const (
 )
 
 type User struct {
-	ChatId   int64  `db:"chat_id"`
-	Approved bool   `db:"approved"`
-	Username string `db:"username"`
-	FullName string `db:"full_name"`
-	Salt     string `db:"salt"`
-	Model    string `db:"model"`
+	ChatId     int64  `db:"chat_id"`
+	Approved   bool   `db:"approved"`
+	Username   string `db:"username"`
+	FullName   string `db:"full_name"`
+	Salt       string `db:"salt"`
+	Model      string `db:"model"`
+	InviteCode string `db:"invite_code"`
 
 	CreatedAt ytime.Time `db:"created_at"`
 	UpdatedAt ytime.Time `db:"updated_at"`
@@ -50,6 +51,8 @@ type Store interface {
 	GetUser(ctx context.Context, chatId int64) (*User, error)
 	PutUser(ctx context.Context, user *User) (*User, error)
 	ApproveUser(ctx context.Context, chatId int64) error
+	EnsureInviteCode(ctx context.Context, user *User) error
+	CheckInviteCode(ctx context.Context, user *User, inviteCode string) error
 
 	GetDialogMessages(ctx context.Context, chatId int64) ([]*Message, error)
 	PutMessages(ctx context.Context, message []*Message) error
