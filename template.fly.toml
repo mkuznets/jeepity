@@ -1,0 +1,13 @@
+primary_region = "lhr"
+kill_signal = "SIGINT"
+kill_timeout = "1m0s"
+
+[build]
+image = "public.ecr.aws/mkuznets/jeepity:latest"
+
+[env]
+DATA_DIR = "/data"
+
+[[mounts]]
+source = "jeepity_data"
+destination = "/data"
