@@ -1,4 +1,4 @@
-# Jeepity: Telegram Bot for OpenAI GPT Models
+# Jeepity
 
 Jeepity is a Telegram bot powered by [OpenAI](https://openai.com) GPT large language models.
 
@@ -71,6 +71,46 @@ DATA_DIR=./data
 ## If not set, the messages will still be encrypted with an empty password.
 #DATA_ENCRYPTION_PASSWORD=
 ```
+
+## Usage
+
+### Access
+
+To avoid abuse and excessive OpenAI API bills, access to the bot is invite-only. Every bot user can run the `/invite`
+command to get a shareable access link that looks like this:
+
+```
+https://t.me/<username>?start=<code>
+```
+
+Opening the link is equivalent to running the `/start <code>` command manually (the link may not always work on
+mobile devices).
+
+When you run Jeepity for the first time, use the URL/code printed in the logs to get the access:
+
+```
+time=... level=DEBUG msg="Starting Telegram bot..."
+time=... level=INFO msg="Invite URL: https://t.me/<username>?start=<code>"
+```
+
+Note that it is regenerated every time you restart the app, do not share it publicly!
+
+### Chatbot
+
+Use the private chat with the bot to talk to the language model. The bot will keep the context of the conversation
+until:
+
+* you run the `/reset` command to start a new conversation,
+* there are no new messages for 1 hour,
+* or the context exceeds the limit of the language model (you will be prompted to reset the conversation).
+
+### Voice Message Transcription
+
+When you forward someone else's voice message to the bot, it will be transcribed using the OpenAI Whisper model. You can
+also record you own voice message to the bot, in which case the transcription will be part of the chatbot conversation.
+
+Note that forwarding a voice message from the "Saved Messages" chat will count as a newly recorded message, and will
+trigger the chatbot response.
 
 ## Self-Hosting
 
