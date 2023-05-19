@@ -14,11 +14,11 @@ Jeepity is a Telegram bot powered by [OpenAI](https://openai.com) GPT large lang
 * **Easy to self-host.** The bot compiles into a single binary and is also available as a Docker
   container. Check out the tutorial on how to get it up and running in minutes on [fly.io](https://fly.io)!
 
-## Installation
+## Quick Start
 
 ### Docker
 
-* Create a `.env` file with the configuration (see [Configuration](#configuration))
+* Create a file named `.env` with the configuration (see [Configuration](#configuration))
 * Run `docker run --env-file .env public.ecr.aws/mkuznets/jeepity:latest`
 
 ### Docker Compose
@@ -30,7 +30,24 @@ Jeepity is a Telegram bot powered by [OpenAI](https://openai.com) GPT large lang
       details.
 * Run `docker-compose up`
 
+### From Source
+
+```shell
+# Requires Go 1.19+
+
+$ go install github.com/mkuznets/jeepity/cmd/jeepity@latest
+$ jeepity run --help
+```
+
+### Pre-Built Binaries
+
+> Coming soon!
+
 ## Configuration
+
+Jeepity can be configured using environment variables
+(recommended), [.env file](https://github.com/joho/godotenv#godotenv--), or CLI
+arguments. Check `jeepity run --help` to see the list of available options.
 
 ```dotenv
 ## Required
