@@ -13,7 +13,6 @@ import (
 	"golang.org/x/sync/errgroup"
 	"mkuznets.com/go/ytils/yctx"
 	"mkuznets.com/go/ytils/yfs"
-	"mkuznets.com/go/ytils/yrand"
 
 	"mkuznets.com/go/jeepity/internal/jeepity"
 	"mkuznets.com/go/jeepity/internal/store"
@@ -82,7 +81,7 @@ func (r *RunCommand) Execute([]string) error {
 		return fmt.Errorf("store.NewSqlite: %w", err)
 	}
 
-	inviteCode := yrand.Base62(InviteCodeLenght)
+	inviteCode := ybot.InviteCode()
 	st.SetDefaultInviteCode(inviteCode)
 
 	ai := openai.NewClient(r.OpenAi.Token)

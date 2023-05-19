@@ -22,4 +22,12 @@ reset_bot_command = "Start a new conversation"
 help_bot_command = "About the bot"
 
 invite_bot_command = "Share access to this bot"
-invite_message = "This bot is invite-only. Share this URL to give access to another user:\n\n{{.Url}}"
+invite_message = '''
+This bot is invite-only. Share this URL to give access to another user:
+
+{{.Url}}
+
+If the link does not work, ther user can get access by sending the following message to the bot:
+
+<pre>/start {{.Code}}</pre>
+'''

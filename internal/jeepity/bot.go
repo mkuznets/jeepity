@@ -168,12 +168,15 @@ func (b *BotHandler) CommandInvite(c telebot.Context) error {
 	msg := loc.MustLocalize(&i18n.LocalizeConfig{
 		DefaultMessage: &i18n.Message{
 			ID:    "invite_message",
-			Other: "This bot is invite-only. Share this URL to give access to another user:\n{{.Url}}",
+			Other: "This bot is invite-only. {{.Url}} {{.Code}}",
 		},
-		TemplateData: map[string]interface{}{"Url": ybot.InviteUrl(b.bot.Me.Username, user.InviteCode)},
+		TemplateData: map[string]interface{}{
+			"Url":  ybot.InviteUrl(b.bot.Me.Username, user.InviteCode),
+			"Code": user.InviteCode,
+		},
 	})
 
-	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeDefault, DisableWebPagePreview: true})
+	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeHTML, DisableWebPagePreview: true})
 }
 
 func (b *BotHandler) Unsupported(c telebot.Context) error {

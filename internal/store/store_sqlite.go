@@ -14,6 +14,7 @@ import (
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
 
+	"mkuznets.com/go/jeepity/internal/ybot"
 	"mkuznets.com/go/jeepity/sql/sqlite"
 
 	// Required to load "sqlite" driver.
@@ -147,7 +148,7 @@ func (s *SqliteStore) EnsureInviteCode(ctx context.Context, user *User) error {
 	if user.InviteCode != "" {
 		return nil
 	}
-	user.InviteCode = yrand.Base62(InviteCodeLenght)
+	user.InviteCode = ybot.InviteCode()
 
 	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		query := `UPDATE users SET invite_code = ? WHERE chat_id = ?`
@@ -190,7 +191,7 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	u.Salt = yrand.Base62(SaltLength)
 	u.CreatedAt = ytime.Now()
 	u.UpdatedAt = ytime.Now()
-	u.InviteCode = yrand.Base62(InviteCodeLenght)
+	u.InviteCode = ybot.InviteCode()
 
 	query := `
 	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt, model, invite_code)
