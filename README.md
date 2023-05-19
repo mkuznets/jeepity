@@ -125,7 +125,7 @@ TELEGRAM_BOT_TOKEN=...
 ```
 
 6. Run `fly deploy` to start the deploy.
-7. Once the deployment is complete, run `fly logs`. You should see something like this:
+7. Go to the "Watch your app" URL. You should see something like this:
 
 ```dotenv
 [info]{"time":"...","level":"DEBUG","msg":"Starting Telegram bot..."}
