@@ -1,0 +1,19 @@
+services:
+  jeepity:
+    image: ghcr.io/mkuznets/jeepity:latest
+    build: .
+    container_name: "jeepity"
+    restart: always
+
+    environment:
+      # Required:
+      - OPENAI_TOKEN
+      - TELEGRAM_BOT_TOKEN
+      - DATA_DIR=/data
+      # Optional:
+      - OPENAI_CHAT_MODEL
+      - OPENAI_AUDIO_MODEL
+      - DATA_ENCRYPTION_PASSWORD
+
+    volumes:
+      - ./data:/data

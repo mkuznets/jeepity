@@ -10,6 +10,7 @@
 !/.github/**
 !/.pre-commit-config.yaml
 !/.golangci.yaml
+!/compose.yaml
 
 !*.go
 !*.sql
