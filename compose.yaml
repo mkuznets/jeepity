@@ -14,6 +14,10 @@ services:
       - OPENAI_CHAT_MODEL
       - OPENAI_AUDIO_MODEL
       - DATA_ENCRYPTION_PASSWORD
+      - TELEGRAM_MODE
+      - TELEGRAM_WEBHOOK_ADDR
+      - TELEGRAM_WEBHOOK_URL
+      - TELEGRAM_WEBHOOK_SECRET
 
     volumes:
       - ./data:/data

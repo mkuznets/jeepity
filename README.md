@@ -70,6 +70,18 @@ DATA_DIR=./data
 ## Customise the password used to encrypt chat messages.
 ## If not set, the messages will still be encrypted with an empty password.
 #DATA_ENCRYPTION_PASSWORD=
+
+## Enable receiving updates via webhook
+#TELEGRAM_MODE=webhook
+#
+## Internal listen address of the webhook
+#TELEGRAM_WEBHOOK_ADDR=:8080
+#
+## Publicly accessible URL of the webhook
+#TELEGRAM_WEBHOOK_URL=
+#
+## Secret password to verify webhook updates
+#TELEGRAM_WEBHOOK_SECRET=
 ```
 
 ## Usage

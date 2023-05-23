@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	longPollTimeout  = 10 * time.Second
-	InviteCodeLenght = 16
+	longPollTimeout       = 10 * time.Second
+	maxWebhookConnections = 16
 )
 
 type RunCommand struct {
@@ -37,7 +37,15 @@ type OpenAi struct {
 }
 
 type Telegram struct {
-	BotToken string `long:"bot-token" env:"BOT_TOKEN" description:"Telegram bot token" required:"true"`
+	BotToken string   `long:"bot-token" env:"BOT_TOKEN" description:"Telegram bot token" required:"true"`
+	Mode     string   `long:"mode" env:"MODE" description:"Method to receive updates" default:"polling" choice:"polling" choice:"webhook"`
+	Webhook  *Webhook `group:"Telegram webhook parameters (only apply for MODE=webhook)" namespace:"webhook" env-namespace:"WEBHOOK"`
+}
+
+type Webhook struct {
+	Addr   string `long:"addr" env:"ADDR" description:"Webhook listen address" default:":8080"`
+	Url    string `long:"url" env:"URL" description:"Webhook URL"`
+	Secret string `long:"secret" env:"SECRET" description:"Webhook secret"`
 }
 
 type Data struct {
@@ -53,13 +61,36 @@ func (r *RunCommand) Validate() error {
 	if _, err := yfs.EnsureDir(r.Data.Dir); err != nil {
 		return fmt.Errorf("EnsureDir: %w", err)
 	}
+
+	if r.Telegram.Mode == "webhook" {
+		if r.Telegram.Webhook.Url == "" {
+			return fmt.Errorf("TELEGRAM_WEBHOOK_URL is required")
+		}
+	}
+
 	return nil
 }
 
 func (r *RunCommand) Execute([]string) error {
+	var poller telebot.Poller
+
+	switch r.Telegram.Mode {
+	case "polling":
+		poller = &telebot.LongPoller{Timeout: longPollTimeout}
+	case "webhook":
+		poller = &telebot.Webhook{
+			Listen:         r.Telegram.Webhook.Addr,
+			MaxConnections: maxWebhookConnections,
+			SecretToken:    r.Telegram.Webhook.Secret,
+			Endpoint: &telebot.WebhookEndpoint{
+				PublicURL: r.Telegram.Webhook.Url,
+			},
+		}
+	}
+
 	pref := telebot.Settings{
 		Token:  r.Telegram.BotToken,
-		Poller: &telebot.LongPoller{Timeout: longPollTimeout},
+		Poller: poller,
 		OnError: func(err error, c telebot.Context) {
 			logger := slog.Default()
 			if c != nil {
@@ -116,8 +147,13 @@ func (r *RunCommand) Execute([]string) error {
 		return fmt.Errorf("errgroup: %w", err)
 	}
 
-	slog.Debug("cleanup")
+	slog.Debug("store cleanup")
 	st.Close()
+
+	slog.Debug("call /deleteWebhook")
+	if err := bot.RemoveWebhook(); err != nil {
+		slog.Error("RemoveWebhook", err)
+	}
 
 	return nil
 }
