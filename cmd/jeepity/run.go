@@ -150,10 +150,5 @@ func (r *RunCommand) Execute([]string) error {
 	slog.Debug("store cleanup")
 	st.Close()
 
-	slog.Debug("call /deleteWebhook")
-	if err := bot.RemoveWebhook(); err != nil {
-		slog.Error("RemoveWebhook", err)
-	}
-
 	return nil
 }
