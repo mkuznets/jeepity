@@ -8,7 +8,7 @@ require (
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/joho/godotenv v1.5.1
 	github.com/mattn/go-sqlite3 v1.14.16
-	github.com/mkuznets/telebot/v3 v3.1.7
+	github.com/mkuznets/telebot/v3 v3.1.8
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
 	github.com/sashabaranov/go-openai v1.9.4
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
