@@ -14,7 +14,7 @@ require (
 	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.9.0
-	mkuznets.com/go/ytils v0.0.7
+	mkuznets.com/go/ytils v0.1.0
 )
 
 require (

@@ -53,10 +53,6 @@ type Data struct {
 	EncryptionPassword string `long:"encryption-password" env:"ENCRYPTION_PASSWORD" description:"Encryption password for messages"`
 }
 
-func (r *RunCommand) Init(*App) error {
-	return nil
-}
-
 func (r *RunCommand) Validate() error {
 	if _, err := yfs.EnsureDir(r.Data.Dir); err != nil {
 		return fmt.Errorf("EnsureDir: %w", err)
