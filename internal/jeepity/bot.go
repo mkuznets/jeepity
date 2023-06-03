@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-pkgz/repeater"
 	"github.com/go-pkgz/repeater/strategy"
+	"github.com/h2non/filetype"
 	"github.com/mkuznets/telebot/v3"
 	"github.com/mkuznets/telebot/v3/middleware"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -138,8 +139,14 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 	bot.Handle("/invite", b.CommandInvite, ybot.AddTag("invite"))
 	bot.Handle("/reset", b.CommandReset, ybot.AddTag("reset"))
 	bot.Handle(&telebot.Btn{Unique: "reset"}, b.CommandReset, ybot.AddTag("reset_button"))
-	bot.Handle(telebot.OnVoice, b.Transcribe, ybot.AddTag("transcribe"))
 	bot.Handle(telebot.OnText, b.Complete, ybot.AddTag("chat_completion"))
+
+	bot.Handle(telebot.OnVoice, b.TranscribeVoice, ybot.AddTag("transcribe_voice"))
+	bot.Handle(telebot.OnAudio, b.TranscribeAudio, ybot.AddTag("transcribe_audio"))
+	bot.Handle(telebot.OnVideo, b.TranscribeVideo, ybot.AddTag("transcribe_video"))
+	bot.Handle(telebot.OnVideoNote, b.TranscribeVideoNote, ybot.AddTag("transcribe_video_note"))
+	bot.Handle(telebot.OnDocument, b.TranscribeDocument, ybot.AddTag("transcribe_document"))
+
 	bot.Handle(telebot.OnMedia, b.Unsupported, ybot.AddTag("media"))
 }
 
@@ -182,7 +189,7 @@ func (b *BotHandler) CommandInvite(c telebot.Context) error {
 
 func (b *BotHandler) Unsupported(c telebot.Context) error {
 	loc := locale.New(ybot.Lang(c))
-	msg := locale.M(loc, &i18n.Message{ID: "unsupported_message", Other: "_Jeepity only supports text messages_"})
+	msg := locale.M(loc, &i18n.Message{ID: "unsupported_message", Other: "_Jeepity only supports text messages, audio, and video files_"})
 	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 }
 
@@ -205,7 +212,27 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 	return c.Send(msg)
 }
 
-func (b *BotHandler) Transcribe(c telebot.Context) error {
+func (b *BotHandler) TranscribeDocument(c telebot.Context) error {
+	return b.transcribe(c, &c.Message().Document.File, false)
+}
+
+func (b *BotHandler) TranscribeVoice(c telebot.Context) error {
+	return b.transcribe(c, &c.Message().Voice.File, true)
+}
+
+func (b *BotHandler) TranscribeAudio(c telebot.Context) error {
+	return b.transcribe(c, &c.Message().Audio.File, false)
+}
+
+func (b *BotHandler) TranscribeVideo(c telebot.Context) error {
+	return b.transcribe(c, &c.Message().Video.File, false)
+}
+
+func (b *BotHandler) TranscribeVideoNote(c telebot.Context) error {
+	return b.transcribe(c, &c.Message().VideoNote.File, false)
+}
+
+func (b *BotHandler) transcribe(c telebot.Context, file *telebot.File, completion bool) error {
 	ctx := ybot.Ctx(c)
 	logger := ybot.Logger(c)
 
@@ -229,10 +256,18 @@ func (b *BotHandler) Transcribe(c telebot.Context) error {
 		_ = os.Remove(mp3FilePath)
 	}()
 
-	if err := b.bot.Download(&c.Message().Voice.File, tmpFile.Name()); err != nil {
+	if err := b.bot.Download(file, tmpFile.Name()); err != nil {
 		return fmt.Errorf("download voice message: %w", err)
 	}
 	_ = tmpFile.Sync()
+
+	fileType, err := filetype.MatchFile(tmpFile.Name())
+	if err != nil {
+		return b.Unsupported(c)
+	}
+	if fileType.MIME.Type != "audio" && fileType.MIME.Type != "video" {
+		return b.Unsupported(c)
+	}
 
 	logger.Debug("voice file downloaded", slog.String("path", tmpFile.Name()))
 
@@ -262,7 +297,7 @@ func (b *BotHandler) Transcribe(c telebot.Context) error {
 		return fmt.Errorf("send message: %w", err)
 	}
 
-	if isForwarded {
+	if isForwarded || !completion {
 		return nil
 	}
 

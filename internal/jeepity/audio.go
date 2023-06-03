@@ -26,8 +26,6 @@ func (f *OggMp3Converter) Command(ctx context.Context) *exec.Cmd {
 		"-nostats", // do not print encoding progress/statistics
 		"-y",       // overwrite output files without asking
 		"-i", f.inputPath,
-		"-acodec", "libmp3lame",
-		"-qscale:a", "4",
 		f.outputPath,
 	}
 
