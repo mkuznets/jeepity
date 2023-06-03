@@ -19,7 +19,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
-	"mkuznets.com/go/ytils/yctx"
+	"ytils.dev/heartbeat"
 
 	"mkuznets.com/go/jeepity/internal/locale"
 	"mkuznets.com/go/jeepity/internal/store"
@@ -35,8 +35,9 @@ const (
 	backoffRepeats  = 5
 	backoffFactor   = 1.5
 
-	streamCompletionTotalTimeout = 5 * time.Minute
-	streamCompletionIdleTimeout  = 30 * time.Second
+	completionTotalTimeout  = 5 * time.Minute
+	streamIdleTimeout       = 30 * time.Second
+	streamIdleCheckInterval = 5 * time.Second
 )
 
 var (
@@ -400,17 +401,19 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 }
 
 func (b *BotHandler) makeStreamCompletion(ctx context.Context, responseMsg telebot.Editable, req *openai.ChatCompletionRequest) (*Completion, error) {
-	ctx, cancel := context.WithTimeout(ctx, streamCompletionTotalTimeout)
+	ctx, cancel := context.WithTimeout(ctx, completionTotalTimeout)
 	defer cancel()
 
-	hb := yctx.NewHeartbeat(ctx, streamCompletionIdleTimeout).Start()
+	hb := heartbeat.New(ctx, streamIdleTimeout, &heartbeat.Options{
+		CheckInterval: streamIdleCheckInterval,
+	})
 	defer hb.Close()
 
-	writer := ybot.NewWriter(hb.Context(), b.bot, responseMsg)
+	writer := ybot.NewWriter(hb.Ctx(), b.bot, responseMsg)
 
 	completion := &Completion{}
 
-	g, ctx := errgroup.WithContext(hb.Context())
+	g, ctx := errgroup.WithContext(hb.Ctx())
 	g.Go(func() error {
 		stream, err := b.ai.CreateChatCompletionStream(ctx, *req)
 		if err != nil {
