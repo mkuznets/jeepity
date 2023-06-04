@@ -905,3 +905,5 @@ rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
 sigs.k8s.io/yaml v1.2.0/go.mod h1:yfXDCHCao9+ENCvLSE62v9VSji2MKu5jeNfTrofGhJc=
 ytils.dev/heartbeat v0.0.2 h1:ziqYby47q6kJaXGs127t0uO7wnwIhiHOrvJNoVZWyjo=
 ytils.dev/heartbeat v0.0.2/go.mod h1:PY+zYdVwuO8aq8A/Dt82rjWbZvhYPNnIv0qX4RcLHiM=
+ytils.dev/sqlite-migrator v0.1.0 h1:KXIZuujTPsohfpAsX3EnCRdsyP8NKhxdKXIi2sHkxmQ=
+ytils.dev/sqlite-migrator v0.1.0/go.mod h1:dbPEu9K8K+x037f74zPwY9YPNcqE2uGWRHipWr8A48s=

@@ -17,6 +17,7 @@ require (
 	golang.org/x/text v0.9.0
 	mkuznets.com/go/ytils v0.1.0
 	ytils.dev/heartbeat v0.0.2
+	ytils.dev/sqlite-migrator v0.1.0
 )
 
 require (

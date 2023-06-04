@@ -5,14 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"regexp"
-	"sort"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/exp/slog"
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
+	"ytils.dev/sqlite-migrator"
 
 	"mkuznets.com/go/jeepity/internal/ybot"
 	"mkuznets.com/go/jeepity/sql/sqlite"
@@ -22,87 +21,21 @@ import (
 )
 
 const (
-	DialogRetention  = time.Hour
-	SaltLength       = 32
-	InviteCodeLenght = 16
+	DialogRetention = time.Hour
+	SaltLength      = 32
 )
-
-var reMigrationFilename = regexp.MustCompile(`^(\d+)_.*\.sql$`)
 
 type SqliteStore struct {
 	defaultInviteCode string
 	db                *sqlx.DB
 }
 
-type migrationFile struct {
-	id       uint32
-	filename string
-	sql      string
-}
-
 func (s *SqliteStore) init(ctx context.Context) error {
-	var currentVersion uint32
-	if err := s.db.GetContext(ctx, &currentVersion, "PRAGMA user_version"); err != nil {
-		return fmt.Errorf("init schema: %w", err)
-	}
-
-	entries, err := sqlite.FS.ReadDir(".")
-	if err != nil {
-		return err
-	}
-
-	migrations := make([]*migrationFile, 0, len(entries))
-	for _, entry := range entries {
-		id, err := getMigrationId(entry.Name())
-		if err != nil {
-			return err
-		}
-
-		content, err := sqlite.FS.ReadFile(entry.Name())
-		if err != nil {
-			return err
-		}
-
-		if id <= currentVersion {
-			continue
-		}
-
-		migrations = append(migrations, &migrationFile{
-			id:       id,
-			filename: entry.Name(),
-			sql:      string(content),
-		})
-	}
-
-	if len(migrations) == 0 {
-		return nil
-	}
-
-	sort.Slice(migrations, func(i, j int) bool {
-		return migrations[i].id < migrations[j].id
+	m := migrator.New(s.db.DB, sqlite.FS)
+	m.WithLogFunc(func(msg string, args ...interface{}) {
+		slog.Debug(msg, args...)
 	})
-
-	err = doTx(ctx, s.db, func(tx *sqlx.Tx) error {
-		for _, migration := range migrations {
-			if _, err := tx.ExecContext(ctx, migration.sql); err != nil {
-				return fmt.Errorf("init schema: %w", err)
-			}
-
-			slog.Debug("migration applied", "id", migration.id, "filename", migration.filename)
-		}
-
-		pragmaQuery := fmt.Sprintf("PRAGMA user_version = %d", migrations[len(migrations)-1].id)
-		if _, err := tx.ExecContext(ctx, pragmaQuery); err != nil {
-			return fmt.Errorf("PRAGMA: %w", err)
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return m.Migrate(ctx)
 }
 
 func (s *SqliteStore) Close() {
@@ -293,17 +226,4 @@ func doTx(ctx context.Context, db *sqlx.DB, op func(tx *sqlx.Tx) error) error {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
-}
-
-func getMigrationId(filename string) (uint32, error) {
-	matches := reMigrationFilename.FindStringSubmatch(filename)
-	if len(matches) < 2 { // nolint:gomnd // matches[0] is the full string
-		return 0, fmt.Errorf("parse migration filename: %s", filename)
-	}
-	idTime, err := time.Parse("20060102150405", matches[1])
-	if err != nil {
-		return 0, err
-	}
-	epoch := time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC).Unix()
-	return uint32(idTime.Unix() - epoch), nil
 }
