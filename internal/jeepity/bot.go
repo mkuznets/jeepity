@@ -20,6 +20,7 @@ import (
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
+	"mkuznets.com/go/ytils/ylog"
 	"ytils.dev/heartbeat"
 
 	"mkuznets.com/go/jeepity/internal/locale"
@@ -101,7 +102,7 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 			},
 		}
 		if err := bot.SetCommands(commands, lang); err != nil {
-			slog.Error("SetCommands", err, slog.String("lang", lang))
+			slog.Error("SetCommands", ylog.Err(err), slog.String("lang", lang))
 		}
 	}
 
@@ -383,7 +384,7 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 		}
 		level := slog.LevelDebug
 		defer func() {
-			logger.LogAttrs(level, "completion", attrs...)
+			logger.LogAttrs(ctx, level, "completion", attrs...)
 		}()
 
 		start := time.Now()
@@ -393,7 +394,7 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
 
 		if cErr != nil {
-			attrs = append(attrs, slog.Any(slog.ErrorKey, cErr))
+			attrs = append(attrs, ylog.Err(cErr))
 			level = slog.LevelError
 			if strings.Contains(cErr.Error(), "reduce the length of the messages") {
 				return ErrContextTooLong

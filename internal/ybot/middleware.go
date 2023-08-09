@@ -7,6 +7,7 @@ import (
 
 	"github.com/mkuznets/telebot/v3"
 	"golang.org/x/exp/slog"
+	"mkuznets.com/go/ytils/ylog"
 )
 
 const (
@@ -100,11 +101,11 @@ func LogEvent(next telebot.HandlerFunc) telebot.HandlerFunc {
 
 		attrs = append(attrs, slog.Duration("duration", time.Since(start)))
 		if err != nil {
-			attrs = append(attrs, slog.Any(slog.ErrorKey, err))
+			attrs = append(attrs, ylog.Err(err))
 			level = slog.LevelError
 		}
 
-		logger.LogAttrs(level, "event", attrs...)
+		logger.LogAttrs(context.Background(), level, "event", attrs...)
 		return err
 	}
 }

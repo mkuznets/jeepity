@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/exp/slog"
+	"mkuznets.com/go/ytils/ylog"
 	"mkuznets.com/go/ytils/yrand"
 	"mkuznets.com/go/ytils/ytime"
 	"ytils.dev/sqlite-migrator"
@@ -40,10 +41,10 @@ func (s *SqliteStore) init(ctx context.Context) error {
 
 func (s *SqliteStore) Close() {
 	if _, err := s.db.Exec("vacuum"); err != nil {
-		slog.Error("sqlite vacuum", err)
+		slog.Error("sqlite vacuum", ylog.Err(err))
 	}
 	if err := s.db.Close(); err != nil {
-		slog.Error("sqlite close", err)
+		slog.Error("sqlite close", ylog.Err(err))
 	}
 }
 

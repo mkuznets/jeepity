@@ -12,10 +12,10 @@ require (
 	github.com/mkuznets/telebot/v3 v3.1.8
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
 	github.com/sashabaranov/go-openai v1.9.4
-	golang.org/x/exp v0.0.0-20230206171751-46f607a40771
+	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819
 	golang.org/x/sync v0.1.0
 	golang.org/x/text v0.9.0
-	mkuznets.com/go/ytils v0.1.0
+	mkuznets.com/go/ytils v0.1.1
 	ytils.dev/heartbeat v0.0.2
 	ytils.dev/sqlite-migrator v0.1.0
 )

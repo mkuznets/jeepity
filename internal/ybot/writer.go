@@ -8,6 +8,7 @@ import (
 
 	"github.com/mkuznets/telebot/v3"
 	"golang.org/x/exp/slog"
+	"mkuznets.com/go/ytils/ylog"
 	"mkuznets.com/go/ytils/ytime"
 )
 
@@ -54,14 +55,14 @@ func (w *Writer) doUpdate(ctx context.Context) {
 				lastMessage = message
 				_, err := w.bot.Edit(w.msg, message)
 				if err != nil {
-					slog.Error("writer edit", err)
+					slog.Error("writer edit", ylog.Err(err))
 				}
 			}
 
 			return nil
 		})
 	if err != nil {
-		slog.Error("writer ticker", err)
+		slog.Error("writer ticker", ylog.Err(err))
 	}
 }
 
@@ -73,11 +74,11 @@ func (w *Writer) Close() {
 	message := w.buf.String()
 	_, mErr := w.bot.Edit(w.msg, message, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
 	if mErr != nil {
-		slog.Error("closing writer: markdown edit", mErr)
+		slog.Error("closing writer: markdown edit", ylog.Err(mErr))
 
 		_, pErr := w.bot.Edit(w.msg, message)
 		if pErr != nil {
-			slog.Error("closing writer: plaintext edit", mErr)
+			slog.Error("closing writer: plaintext edit", ylog.Err(pErr))
 		}
 	}
 }
