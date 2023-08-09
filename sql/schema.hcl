@@ -59,6 +59,8 @@ table "users" {
   check {
     expr = "(updated_at > 0)"
   }
+
+  strict = true
 }
 
 table "messages" {
@@ -104,6 +106,8 @@ table "messages" {
   check {
     expr = "(created_at > 0)"
   }
+
+  strict = true
 }
 
 table "usage" {
@@ -157,6 +161,8 @@ table "usage" {
   check {
     expr = "(created_at > 0)"
   }
+
+  strict = true
 }
 
 schema "main" {}
