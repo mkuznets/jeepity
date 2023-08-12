@@ -1,9 +1,10 @@
 on:
   workflow_dispatch:
+name: Docker
 
 jobs:
   docker:
-    name: Build and push Docker image
+    name: Build and push
     runs-on: ubuntu-latest
     permissions:
       packages: write
