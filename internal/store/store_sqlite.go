@@ -156,7 +156,7 @@ func (s *SqliteStore) CheckInviteCode(ctx context.Context, user *User, code stri
 	})
 }
 
-func (s *SqliteStore) CreateUser(ctx context.Context, user *User) (*User, error) {
+func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	u := *user
 	u.Salt = yrand.Base62(SaltLength)
 	u.CreatedAt = ytime.Now()

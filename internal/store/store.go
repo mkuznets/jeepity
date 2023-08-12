@@ -58,7 +58,7 @@ type Usage struct {
 
 type Store interface {
 	GetUser(ctx context.Context, chatId int64) (*User, error)
-	CreateUser(ctx context.Context, user *User) (*User, error)
+	PutUser(ctx context.Context, user *User) (*User, error)
 	ApproveUser(ctx context.Context, chatId int64) error
 	EnsureInviteCode(ctx context.Context, user *User) error
 	CheckInviteCode(ctx context.Context, user *User, inviteCode string) error

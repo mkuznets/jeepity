@@ -56,9 +56,9 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 					Username: sender.Username,
 					FullName: sender.FirstName + " " + sender.LastName,
 				}
-				newUser, err := s.CreateUser(ctx, u)
+				newUser, err := s.PutUser(ctx, u)
 				if err != nil {
-					return fmt.Errorf("CreateUser: %w", err)
+					return fmt.Errorf("PutUser: %w", err)
 				}
 				u = newUser
 			}
