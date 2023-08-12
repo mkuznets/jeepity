@@ -31,3 +31,32 @@ If the link does not work, ther user can get access by sending the following mes
 
 <pre>/start {{.Code}}</pre>
 '''
+
+
+cancel_button = "Cancel"
+default_button = "Default prompt"
+
+initial_system_prompt = "You are ChatGPT, assistant based on a large language model trained by OpenAI. Follow the user's instructions carefully. Respond using markdown. Provide very detailed answers with explanations and reasoning."
+
+system_prompt_command = "Update system prompt"
+system_prompt_updated_message = '''
+Prompt updated\! It will be used for all new conversations\.
+
+```
+{{.NewPrompt}}
+```
+'''
+
+update_system_prompt_message = '''
+The system message \(_prompt_\) defines the behavior of the chatbot\. For example, you can modify the personality of the bot or provide specific instructions about how it should respond to your queries\.
+
+Current prompt:
+
+```
+{{.CurrentPrompt}}
+```
+
+To replace the prompt, send the new text to the chat\.
+'''
+
+system_prompt_unchanged_message = "System prompt not changed"

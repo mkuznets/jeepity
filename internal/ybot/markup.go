@@ -5,9 +5,21 @@ import (
 )
 
 func SingleButtonMenu(id, text string) *telebot.ReplyMarkup {
-	resetMenu := &telebot.ReplyMarkup{}
-	resetMenu.ResizeKeyboard = true
-	resetButton := resetMenu.Data(text, id)
-	resetMenu.Inline(resetMenu.Row(resetButton))
-	return resetMenu
+	menu := &telebot.ReplyMarkup{}
+	menu.ResizeKeyboard = true
+	button := menu.Data(text, id)
+	menu.Inline(menu.Row(button))
+	return menu
+}
+
+func MultiButtonMenu(arg ...string) *telebot.ReplyMarkup {
+	menu := &telebot.ReplyMarkup{}
+	menu.ResizeKeyboard = true
+
+	var buttons []telebot.Btn
+	for i := 0; i < len(arg); i += 2 {
+		buttons = append(buttons, menu.Data(arg[i+1], arg[i]))
+	}
+	menu.Inline(menu.Row(buttons...))
+	return menu
 }

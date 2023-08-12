@@ -41,6 +41,14 @@ table "users" {
     null = true
     type = integer
   }
+  column "system_prompt" {
+    null = true
+    type = text
+  }
+  column "input_state" {
+    null = true
+    type = text
+  }
 
   primary_key {
     columns = [column.chat_id]

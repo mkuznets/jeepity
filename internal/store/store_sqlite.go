@@ -66,7 +66,20 @@ func NewSqlite(path string) (*SqliteStore, error) {
 
 func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) {
 	var user User
-	query := `SELECT chat_id, approved, username, full_name, salt, coalesce(model, '') as model, coalesce(invite_code, '') as invite_code, created_at, updated_at FROM users WHERE chat_id = ?`
+	query := `
+	SELECT
+	    chat_id,
+	    approved,
+	    username,
+	    full_name,
+	    salt,
+	    coalesce(model, '') as model,
+	    coalesce(invite_code, '') as invite_code,
+	    coalesce(system_prompt, '') as system_prompt,
+	    coalesce(input_state, '') as input_state,
+	    created_at,
+	    updated_at
+	FROM users WHERE chat_id = ?`
 	if err := s.db.GetContext(ctx, &user, query, chatId); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // nolint:nilnil // nil value is used upstream
@@ -75,6 +88,29 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	}
 
 	return &user, nil
+}
+
+// SetSystemPrompt sets the system prompt for the user.
+func (s *SqliteStore) SetSystemPrompt(ctx context.Context, chatId int64, prompt string) error {
+	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		query := `UPDATE users SET system_prompt = ? WHERE chat_id = ?`
+		_, err := tx.ExecContext(ctx, query, prompt, chatId)
+		if err != nil {
+			return fmt.Errorf("sql: UPDATE system_prompt: %w", err)
+		}
+		return nil
+	})
+}
+
+func (s *SqliteStore) SetInputState(ctx context.Context, chatId int64, state InputState) error {
+	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		query := `UPDATE users SET input_state = ? WHERE chat_id = ?`
+		_, err := tx.ExecContext(ctx, query, state, chatId)
+		if err != nil {
+			return fmt.Errorf("sql: UPDATE input_state: %w", err)
+		}
+		return nil
+	})
 }
 
 // EnsureInviteCode checks if the user has an invite code and generates a new one if not.
@@ -120,7 +156,7 @@ func (s *SqliteStore) CheckInviteCode(ctx context.Context, user *User, code stri
 	})
 }
 
-func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
+func (s *SqliteStore) CreateUser(ctx context.Context, user *User) (*User, error) {
 	u := *user
 	u.Salt = yrand.Base62(SaltLength)
 	u.CreatedAt = ytime.Now()

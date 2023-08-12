@@ -56,9 +56,9 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 					Username: sender.Username,
 					FullName: sender.FirstName + " " + sender.LastName,
 				}
-				newUser, err := s.PutUser(ctx, u)
+				newUser, err := s.CreateUser(ctx, u)
 				if err != nil {
-					return fmt.Errorf("PutUser: %w", err)
+					return fmt.Errorf("CreateUser: %w", err)
 				}
 				u = newUser
 			}
@@ -101,7 +101,7 @@ func ErrorHandler() telebot.MiddlewareFunc {
 			case errors.Is(err, ErrContextTooLong):
 				resetButtonText := locale.M(loc, &i18n.Message{ID: "reset_inline_button", Other: "Start again"})
 				msg := locale.M(loc, &i18n.Message{ID: "err_context_too_long_message", Other: "⛔ The conversation is too long"})
-				return c.Send(msg, ybot.SingleButtonMenu("reset", resetButtonText))
+				return c.Send(msg, ybot.SingleButtonMenu("reset_chat_context", resetButtonText))
 			default:
 				msg := locale.M(loc, &i18n.Message{ID: "err_default_message", Other: "❌ Something went wrong. Please try again"})
 				return c.Send(msg)
