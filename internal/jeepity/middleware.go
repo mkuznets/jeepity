@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/mkuznets/telebot/v3"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
 
 	"mkuznets.com/go/jeepity/internal/locale"
 	"mkuznets.com/go/jeepity/internal/store"
@@ -96,15 +95,14 @@ func ErrorHandler() telebot.MiddlewareFunc {
 
 			switch {
 			case errors.Is(err, ErrNotApproved):
-				msg := locale.M(loc, &i18n.Message{ID: "err_not_approved_message", Other: "⛔ You cannot use this bot"})
-				return c.Send(msg)
+				return c.Send(loc.ErrNotApproved())
 			case errors.Is(err, ErrContextTooLong):
-				resetButtonText := locale.M(loc, &i18n.Message{ID: "reset_inline_button", Other: "Start again"})
-				msg := locale.M(loc, &i18n.Message{ID: "err_context_too_long_message", Other: "⛔ The conversation is too long"})
-				return c.Send(msg, ybot.SingleButtonMenu("reset_chat_context", resetButtonText))
+				return c.Send(
+					loc.ErrContextTooLongMessage(),
+					ybot.SingleButtonMenu("reset_chat_context", loc.ResetInlineButton()),
+				)
 			default:
-				msg := locale.M(loc, &i18n.Message{ID: "err_default_message", Other: "❌ Something went wrong. Please try again"})
-				return c.Send(msg)
+				return c.Send(loc.ErrDefaultMessage())
 			}
 		}
 	}

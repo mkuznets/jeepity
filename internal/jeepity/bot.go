@@ -16,7 +16,6 @@ import (
 	"github.com/h2non/filetype"
 	"github.com/mkuznets/telebot/v3"
 	"github.com/mkuznets/telebot/v3/middleware"
-	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/sashabaranov/go-openai"
 	"golang.org/x/exp/slog"
 	"golang.org/x/sync/errgroup"
@@ -89,19 +88,19 @@ func (b *BotHandler) Configure(bot *telebot.Bot) {
 		commands := []telebot.Command{
 			{
 				Text:        "reset",
-				Description: locale.M(loc, &i18n.Message{ID: "reset_bot_command", Other: "Start a new conversation"}),
+				Description: loc.ResetBotCommand(),
 			},
 			{
 				Text:        "help",
-				Description: locale.M(loc, &i18n.Message{ID: "help_bot_command", Other: "Bot description"}),
+				Description: loc.HelpBotCommand(),
 			},
 			{
 				Text:        "invite",
-				Description: locale.M(loc, &i18n.Message{ID: "invite_bot_command", Other: "Invite another user to this bot"}),
+				Description: loc.InviteBotCommand(),
 			},
 			{
 				Text:        "prompt",
-				Description: locale.M(loc, &i18n.Message{ID: "system_prompt_command", Other: "Update system prompt"}),
+				Description: loc.SystemPromptCommand(),
 			},
 		}
 		if err := bot.SetCommands(commands, lang); err != nil {
@@ -164,8 +163,7 @@ func (b *BotHandler) Wait() {
 
 func (b *BotHandler) CommandHelp(c telebot.Context) error {
 	loc := locale.New(ybot.Lang(c))
-	msg := locale.M(loc, &i18n.Message{ID: "help_message", Other: "Hi, I'm Jeepity"})
-	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, DisableWebPagePreview: true})
+	return c.Send(loc.HelpMessage(), &telebot.SendOptions{ParseMode: telebot.ModeMarkdown, DisableWebPagePreview: true})
 }
 
 func (b *BotHandler) CommandInvite(c telebot.Context) error {
@@ -179,24 +177,17 @@ func (b *BotHandler) CommandInvite(c telebot.Context) error {
 
 	loc := locale.New(ybot.Lang(c))
 
-	msg := loc.MustLocalize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "invite_message",
-			Other: "This bot is invite-only. {{.Url}} {{.Code}}",
-		},
-		TemplateData: map[string]interface{}{
-			"Url":  ybot.InviteUrl(b.bot.Me.Username, user.InviteCode),
-			"Code": user.InviteCode,
-		},
-	})
+	msg := loc.InviteMessage(
+		ybot.InviteUrl(b.bot.Me.Username, user.InviteCode),
+		user.InviteCode,
+	)
 
 	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeHTML, DisableWebPagePreview: true})
 }
 
 func (b *BotHandler) Unsupported(c telebot.Context) error {
 	loc := locale.New(ybot.Lang(c))
-	msg := locale.M(loc, &i18n.Message{ID: "unsupported_message", Other: "_Jeepity only supports text messages, audio, and video files_"})
-	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
+	return c.Send(loc.UnsupportedMessage(), &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 }
 
 func (b *BotHandler) CommandReset(c telebot.Context) error {
@@ -205,18 +196,13 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 	if !ok {
 		return ErrUserNotFound
 	}
-	loc := locale.New(ybot.Lang(c))
 
 	if err := b.s.ClearMessages(ctx, user.ChatId); err != nil {
 		return err
 	}
 
-	msg := locale.M(loc, &i18n.Message{
-		ID:    "reset_message",
-		Other: "✅ New conversation initiated. ChatGPT will not remember previous messages.",
-	})
-
-	return c.Send(msg)
+	loc := locale.New(ybot.Lang(c))
+	return c.Send(loc.ResetMessage())
 }
 
 func (b *BotHandler) ClearInputState(c telebot.Context) error {
@@ -247,32 +233,20 @@ func (b *BotHandler) CommandSystemPrompt(c telebot.Context) error {
 
 	currentPrompt := user.SystemPrompt
 	if currentPrompt == "" {
-		currentPrompt = getInitialSystemPrompt(loc)
+		currentPrompt = loc.InitialSystemPrompt()
 	}
 
 	if err := b.s.SetInputState(ctx, user.ChatId, store.InputStateWaitingForSystemPrompt); err != nil {
 		return fmt.Errorf("set state: %w", err)
 	}
 
-	msg := loc.MustLocalize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "update_system_prompt_message",
-			Other: "Update system prompt: {{.CurrentPrompt}}",
-		},
-		TemplateData: map[string]interface{}{
-			"CurrentPrompt": ybot.EscapeMarkdownV2(currentPrompt),
-		},
-	})
-
-	cancelButtonText := locale.M(loc, &i18n.Message{ID: "cancel_button", Other: "Cancel"})
-	defaultButtonText := locale.M(loc, &i18n.Message{ID: "default_button", Other: "Default"})
+	msg := loc.UpdateSystemPromptMessage(ybot.EscapeMarkdownV2(currentPrompt))
 
 	menuItems := []string{
-		"cancel_state", cancelButtonText,
+		"cancel_state", loc.CancelButton(),
 	}
-
 	if user.SystemPrompt != "" {
-		menuItems = append([]string{"set_default_system_prompt", defaultButtonText}, menuItems...)
+		menuItems = append([]string{"set_default_system_prompt", loc.DefaultButton()}, menuItems...)
 	}
 	menu := ybot.MultiButtonMenu(menuItems...)
 
@@ -355,9 +329,8 @@ func (b *BotHandler) transcribe(c telebot.Context, file *telebot.File, completio
 	}
 
 	loc := locale.New(ybot.Lang(c))
-	systemMsg := locale.M(loc, &i18n.Message{ID: "transcribe_message", Other: "Transcription:"})
 
-	err = c.Send(systemMsg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
+	err = c.Send(loc.TranscribeMessage(), &telebot.SendOptions{ParseMode: telebot.ModeMarkdown})
 	if err != nil {
 		return fmt.Errorf("send message: %w", err)
 	}
@@ -404,8 +377,7 @@ func (b *BotHandler) doSetSystemPrompt(c telebot.Context, prompt string) error {
 	loc := locale.New(ybot.Lang(c))
 
 	if user.SystemPrompt == prompt {
-		msg := locale.M(loc, &i18n.Message{ID: "system_prompt_unchanged_message", Other: "System prompt not changed"})
-		return c.Send(msg)
+		return c.Send(loc.SystemPromptUnchanged())
 	}
 
 	if err := b.s.SetSystemPrompt(ctx, user.ChatId, prompt); err != nil {
@@ -422,18 +394,10 @@ func (b *BotHandler) doSetSystemPrompt(c telebot.Context, prompt string) error {
 
 	displayPrompt := prompt
 	if displayPrompt == "" {
-		displayPrompt = getInitialSystemPrompt(loc)
+		displayPrompt = loc.InitialSystemPrompt()
 	}
 
-	msg := loc.MustLocalize(&i18n.LocalizeConfig{
-		DefaultMessage: &i18n.Message{
-			ID:    "system_prompt_updated_message",
-			Other: "System prompt updated: {{.NewPrompt}}",
-		},
-		TemplateData: map[string]interface{}{
-			"NewPrompt": ybot.EscapeMarkdownV2(displayPrompt),
-		},
-	})
+	msg := loc.SystemPromptUpdatedMessage(ybot.EscapeMarkdownV2(displayPrompt))
 
 	return c.Send(msg, &telebot.SendOptions{ParseMode: telebot.ModeMarkdownV2})
 }
@@ -467,7 +431,7 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 	} else {
 		systemPrompt := user.SystemPrompt
 		if systemPrompt == "" {
-			systemPrompt = getInitialSystemPrompt(loc)
+			systemPrompt = loc.InitialSystemPrompt()
 		}
 
 		msgs = append(msgs, &store.Message{
@@ -626,8 +590,4 @@ func messagesToOpenAiMessages(messages []*store.Message) []openai.ChatCompletion
 		}
 	}
 	return res
-}
-
-func getInitialSystemPrompt(loc *i18n.Localizer) string {
-	return locale.M(loc, &i18n.Message{ID: "initial_system_prompt", Other: "..."})
 }
