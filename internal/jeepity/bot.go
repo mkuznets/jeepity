@@ -514,7 +514,7 @@ func (b *BotHandler) doCompletion(ctx context.Context, c telebot.Context, text s
 
 	msgs = append(msgs, &store.Message{
 		ChatId:  user.ChatId,
-		Role:    openai.ChatMessageRoleSystem,
+		Role:    openai.ChatMessageRoleAssistant,
 		Message: completion.Response,
 	})
 
