@@ -49,6 +49,10 @@ table "users" {
     null = true
     type = text
   }
+  column "dialog_id" {
+    null = true
+    type = text
+  }
 
   primary_key {
     columns = [column.chat_id]

@@ -171,9 +171,6 @@ func (b *BotHandler) CommandInvite(c telebot.Context) error {
 	if !ok {
 		return ErrUserNotFound
 	}
-	if err := b.s.EnsureInviteCode(ybot.Ctx(c), user); err != nil {
-		return err
-	}
 
 	loc := locale.New(ybot.Lang(c))
 
@@ -198,6 +195,9 @@ func (b *BotHandler) CommandReset(c telebot.Context) error {
 	}
 
 	if err := b.s.ClearMessages(ctx, user.ChatId); err != nil {
+		return err
+	}
+	if err := b.s.ResetDiglogID(ctx, user); err != nil {
 		return err
 	}
 

@@ -62,6 +62,13 @@ func Authenticate(s store.Store) telebot.MiddlewareFunc {
 				u = newUser
 			}
 
+			if err := s.EnsureInviteCode(ctx, u); err != nil {
+				return err
+			}
+			if err := s.EnsureDiglogID(ctx, u); err != nil {
+				return err
+			}
+
 			if !u.Approved {
 				code := extractInviteCode(c)
 				if code == "" {

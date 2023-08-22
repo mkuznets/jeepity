@@ -31,6 +31,7 @@ type User struct {
 	InviteCode   string     `db:"invite_code"`
 	SystemPrompt string     `db:"system_prompt"`
 	InputState   InputState `db:"input_state"`
+	DialogID     string     `db:"dialog_id"`
 
 	CreatedAt ytime.Time `db:"created_at"`
 	UpdatedAt ytime.Time `db:"updated_at"`
@@ -61,6 +62,8 @@ type Store interface {
 	PutUser(ctx context.Context, user *User) (*User, error)
 	ApproveUser(ctx context.Context, chatId int64) error
 	EnsureInviteCode(ctx context.Context, user *User) error
+	EnsureDiglogID(ctx context.Context, user *User) error
+	ResetDiglogID(ctx context.Context, user *User) error
 	CheckInviteCode(ctx context.Context, user *User, inviteCode string) error
 	SetSystemPrompt(ctx context.Context, chatId int64, prompt string) error
 	SetInputState(ctx context.Context, chatId int64, state InputState) error

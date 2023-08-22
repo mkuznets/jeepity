@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/oklog/ulid/v2"
 	"golang.org/x/exp/slog"
 	"mkuznets.com/go/ytils/ylog"
 	"mkuznets.com/go/ytils/yrand"
@@ -77,6 +78,7 @@ func (s *SqliteStore) GetUser(ctx context.Context, chatId int64) (*User, error) 
 	    coalesce(invite_code, '') as invite_code,
 	    coalesce(system_prompt, '') as system_prompt,
 	    coalesce(input_state, '') as input_state,
+	    coalesce(dialog_id, '') as dialog_id,
 	    created_at,
 	    updated_at
 	FROM users WHERE chat_id = ?`
@@ -130,6 +132,27 @@ func (s *SqliteStore) EnsureInviteCode(ctx context.Context, user *User) error {
 	})
 }
 
+func (s *SqliteStore) EnsureDiglogID(ctx context.Context, user *User) error {
+	if user.DialogID != "" {
+		return nil
+	}
+	user.DialogID = newDialogID()
+
+	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
+		query := `UPDATE users SET dialog_id = ? WHERE chat_id = ?`
+		_, err := tx.ExecContext(ctx, query, user.DialogID, user.ChatId)
+		if err != nil {
+			return fmt.Errorf("EnsureDiglogID: %w", err)
+		}
+		return nil
+	})
+}
+
+func (s *SqliteStore) ResetDiglogID(ctx context.Context, user *User) error {
+	user.DialogID = ""
+	return s.EnsureDiglogID(ctx, user)
+}
+
 func (s *SqliteStore) CheckInviteCode(ctx context.Context, user *User, code string) error {
 	return doTx(ctx, s.db, func(tx *sqlx.Tx) error {
 		var invitedBy int64
@@ -162,13 +185,14 @@ func (s *SqliteStore) PutUser(ctx context.Context, user *User) (*User, error) {
 	u.CreatedAt = ytime.Now()
 	u.UpdatedAt = ytime.Now()
 	u.InviteCode = ybot.InviteCode()
+	u.DialogID = newDialogID()
 
 	query := `
-	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt, model, invite_code)
-	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	INSERT INTO users (chat_id, approved, username, full_name, created_at, updated_at, salt, model, invite_code, dialog_id)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	ON CONFLICT DO NOTHING`
 
-	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt, "", u.InviteCode)
+	_, err := s.db.ExecContext(ctx, query, u.ChatId, u.Approved, u.Username, u.FullName, u.CreatedAt, u.UpdatedAt, u.Salt, "", u.InviteCode, u.DialogID)
 
 	return &u, err
 }
@@ -263,4 +287,8 @@ func doTx(ctx context.Context, db *sqlx.DB, op func(tx *sqlx.Tx) error) error {
 		return fmt.Errorf("commit transaction: %w", err)
 	}
 	return nil
+}
+
+func newDialogID() string {
+	return "dia_" + ulid.Make().String()
 }
