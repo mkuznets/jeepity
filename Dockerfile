@@ -1,4 +1,4 @@
-FROM ghcr.io/mkuznets/build-go:1.20.2-20230519181222 as build
+FROM ghcr.io/mkuznets/build-go:1.21.0-20230817231823 as build
 
 ENV \
     CGO_ENABLED=1
