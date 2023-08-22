@@ -11,6 +11,7 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.17
 	github.com/mkuznets/telebot/v3 v3.1.8
 	github.com/nicksnyder/go-i18n/v2 v2.2.1
+	github.com/oklog/ulid/v2 v2.1.0
 	github.com/sashabaranov/go-openai v1.14.1
 	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819
 	golang.org/x/sync v0.3.0
