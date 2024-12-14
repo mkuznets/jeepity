@@ -14,8 +14,8 @@ require (
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/sashabaranov/go-openai v1.14.1
 	golang.org/x/exp v0.0.0-20230809150735-7b3493d9a819
-	golang.org/x/sync v0.3.0
-	golang.org/x/text v0.14.0
+	golang.org/x/sync v0.10.0
+	golang.org/x/text v0.21.0
 	mkuznets.com/go/ytils v0.1.1
 	ytils.dev/heartbeat v0.0.2
 	ytils.dev/sqlite-migrator v0.1.0
@@ -26,6 +26,6 @@ require (
 	github.com/jessevdk/go-flags v1.5.0 // indirect
 	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/sys v0.15.0 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
 )
